@@ -1,7 +1,7 @@
 <?php
 namespace SeanKndy\CSV;
 
-class CSV implements Iterator
+class CSV implements \Iterator
 {
     protected $file;
     protected $fp;
