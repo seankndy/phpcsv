@@ -1,0 +1,22 @@
+{
+    "name": "seankndy/phpcsv",
+    "description": "Class for working with CSV",
+    "authors": [
+        {
+            "name": "Sean Kennedy",
+            "email": "sean@kndy.net"
+        }
+    ],
+    "keywords": [
+        "csv",
+        "comma separated value"
+    ],
+    "require": {
+        "php": ">=7.1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "SeanKndy\\CSV\\": "src/"
+        }
+    }
+}
