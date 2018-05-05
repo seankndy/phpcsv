@@ -9,7 +9,6 @@ class CSV implements \Iterator
     protected $loaded = false;
     protected $csv = [];
     protected $columns = [];
-    protected $row = [];
     protected $options = [];
 
     // properties for Iterator
@@ -64,80 +63,6 @@ class CSV implements \Iterator
         \fclose($this->fp);
         $this->loaded = true;
     }
-
-    //
-    // Itearator implementation
-    //
-    /**
-     * Get current CSV line from either local memory or file
-     *
-     * @return mixed
-     */
-    public function current() {
-        if ($this->loaded) {
-            return $this->csv[$this->position];
-        } else {
-            $data = \fgetcsv($this->fp);
-            if ($this->options['trim']) {
-                foreach ($data as $k => $v) {
-                    $data[$k] = trim($v);
-                }
-            }
-            if ($this->position == 0 && $this->options['hasHeader']) {
-                $this->columns = $data;
-            }
-            return $data;
-        }
-    }
-
-    /**
-     * Get current key (position)
-     *
-     * @return int
-     */
-    public function key() {
-        return $this->position;
-    }
-
-    /**
-     * Move to next line in CSV
-     *
-     * @return void
-     */
-    public function next() {
-        if (!$this->loaded) {
-            $this->positionValid = (\fgets($this->fp) !== false);
-        } else {
-            $this->positionValid = ($this->position+1 < count($this->csv));
-        }
-        $this->position++;
-    }
-
-    /**
-     * Rewind to beginning of CSV
-     *
-     * @return void
-     */
-    public function rewind() {
-        if (!$this->loaded) {
-            $this->positionValid = (fseek($this->fp, 0) == 0);
-        } else {
-            $this->positionValid = true;
-        }
-        $this->position = 0;
-    }
-
-    /**
-     * Return true/false depending on if current line is valid.
-     *
-     * @return boolean
-     */
-    public function valid() {
-        return $this->positionValid;
-    }
-    //
-    // End Iterator implementation
-    //
 
     /**
      * Add column to CSV
@@ -197,19 +122,24 @@ class CSV implements \Iterator
     }
 
     /**
-     * Commit (append) $this->row to $this->csv
+     * Create new row and append to end of CSV
      *
-     * @return void
+     * @param array $fill Optional array containing values to fill into row
+     *
+     * @return int Row index of newly inserted row
      */
-    public function commit() {
-        ksort($this->row);
-        $this->csv[] = $this->row;
-        $this->row = [];
+    public function appendRow(array $fill = []) {
+        $row = array_fill(0, count($this->columns)-1, '');
+        if ($fill) {
+            $row = array_merge($row, $fill);
+        }
+        ksort($row);
+        return array_push($this->csv, $row);
     }
 
     /**
      * Insert $data for column $col into either row at $rowIndex or
-     * the current/uncommitted row (if $rowIndex < 0)
+     * new row appended (if $rowIndex < 0)
      *
      * @param mixed $col Column name or index of column to insert into
      * @param string $data Data to insert into column
@@ -223,14 +153,12 @@ class CSV implements \Iterator
             throw new \InvalidArgumentException("Invalid/unknown column passed in: $col\n");
         }
 
-        if ($rowIndex >= 0 && isset($this->csv[$rowIndex])) {
+        if ($rowIndex < 0) {
+            $rowIndex = count($this->csv)-1;
+        }
+
+        if (isset($this->csv[$rowIndex])) {
             $this->csv[$rowIndex][$colIndex] = $data;
-        } else if ($rowIndex < 0) {
-            if (!$this->row) {
-                // initialize new row with proper number of columns
-                $this->row = array_fill(0, count($this->columns)-1, '');
-            }
-            $this->row[$colIndex] = $data;
         } else {
             throw new \OutOfBoundsException("$rowIndex is out of bound.");
         }
@@ -238,7 +166,7 @@ class CSV implements \Iterator
 
     /**
      * Fetch data from a specific row and column.
-     * If $rowIndex < 0, then fetch data from the "current" uncommitted row.
+     * If $rowIndex < 0, then fetch data from the last row.
      *
      * @param string $col Column name to fetch (as specified in defColumn())
      * @param int    $rowIndex Index of row to fetch or -1 to fetch from
@@ -250,10 +178,12 @@ class CSV implements \Iterator
         if (($index = $this->columnIndex($col)) < 0) {
             throw new \InvalidArgumentException("Invalid/unknown column passed in: $col\n");
         }
-        if ($rowIndex < 0 && $this->row) {
-            return $this->row[$index];
-        } else if ($rowIndex >= 0 && isset($this->csv[$rowIndex])) {
-            return $this->csv[$rowIndex];
+        if ($rowIndex < 0) {
+            $rowIndex = count($this->csv)-1;
+        }
+
+        if (isset($this->csv[$rowIndex])) {
+            return $this->csv[$rowIndex][$index];
         }
         return null;
     }
@@ -288,6 +218,9 @@ class CSV implements \Iterator
      */
     public function fillFrom(CSV $that, $thisKeyColumn, $thatKeyColumn,
         array $theseColumns, array $thoseColumns) {
+        if (!$this->loaded) {
+            throw new \RuntimeException("CSV must be loaded into memory (use load() method) in order to use this method.");
+        }
         if (($thisKeyIndex = $this->columnIndex($thisKeyColumn)) < 0) {
             throw new \InvalidArgumentException("\$thisKeyColumn ($thisKeyColumn) is undefined!");
         }
@@ -398,4 +331,78 @@ class CSV implements \Iterator
         }
         \fclose($fp);
     }
+
+    //
+    // Itearator implementation
+    //
+    /**
+     * Get current CSV line from either local memory or file
+     *
+     * @return mixed
+     */
+    public function current() {
+        if ($this->loaded) {
+            return $this->csv[$this->position];
+        } else {
+            $data = \fgetcsv($this->fp);
+            if ($this->options['trim']) {
+                foreach ($data as $k => $v) {
+                    $data[$k] = trim($v);
+                }
+            }
+            if ($this->position == 0 && $this->options['hasHeader']) {
+                $this->columns = $data;
+            }
+            return $data;
+        }
+    }
+
+    /**
+     * Get current key (position)
+     *
+     * @return int
+     */
+    public function key() {
+        return $this->position;
+    }
+
+    /**
+     * Move to next line in CSV
+     *
+     * @return void
+     */
+    public function next() {
+        if (!$this->loaded) {
+            $this->positionValid = (\fgets($this->fp) !== false);
+        } else {
+            $this->positionValid = ($this->position+1 < count($this->csv));
+        }
+        $this->position++;
+    }
+
+    /**
+     * Rewind to beginning of CSV
+     *
+     * @return void
+     */
+    public function rewind() {
+        if (!$this->loaded) {
+            $this->positionValid = (fseek($this->fp, 0) == 0);
+        } else {
+            $this->positionValid = true;
+        }
+        $this->position = 0;
+    }
+
+    /**
+     * Return true/false depending on if current line is valid.
+     *
+     * @return boolean
+     */
+    public function valid() {
+        return $this->positionValid;
+    }
+    //
+    // End Iterator implementation
+    //
 }
