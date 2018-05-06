@@ -272,12 +272,13 @@ class CSV implements \Iterator
                 unset($row[$colIndex]);
             }
             $row[] = implode($delimiter, $newData);
-            $this->csv[$i][] = array_values($row);
+            $this->csv[$i] = array_values($row);
         }
 
         $this->columns = array_filter($this->columns, function ($v) use ($columns) {
-            return in_array($v, $columns);
+            return !in_array($v, $columns);
         });
+        $this->columns[] = $newColumn;
     }
 
     /**
