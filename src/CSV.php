@@ -275,7 +275,7 @@ class CSV implements \Iterator
             $this->csv[$i][] = array_values($row);
         }
 
-        $this->columns = array_filter($this->columns, function ($v) {
+        $this->columns = array_filter($this->columns, function ($v) use ($columns) {
             return in_array($v, $columns);
         });
     }
