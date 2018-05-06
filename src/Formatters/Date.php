@@ -12,7 +12,11 @@ class Date implements Formatter
     }
 
     public function format($data) {
-        $date = new \DateTime(trim($data), new \DateTimeZone($this->tz));
-        return $date->format($this->format);
+        try {
+            $date = new \DateTime(trim($data), new \DateTimeZone($this->tz));
+            return $date->format($this->format);
+        } catch (\Exception $e) {
+            return $data;
+        }
     }
 }
