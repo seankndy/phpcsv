@@ -56,12 +56,14 @@ class CSV implements \Iterator
                     $data[$k] = trim($v);
                 }
             }
+            if (!$first || !$this->options['hasHeader']) {
+                foreach ($this->formatters as $i => $formatter) {
+                    $data[$i] = $formatter->format($data[$i]);
+                }
+            }
             if ($first && $this->options['hasHeader']) {
                 $this->columns = $data;
                 $first = false;
-            }
-            foreach ($this->formatters as $i => $formatter) {
-                $data[$i] = $formatter->format($data[$i]);
             }
             $this->csv[] = $data;
         }
