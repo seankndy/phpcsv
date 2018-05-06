@@ -144,7 +144,7 @@ class CSV implements \Iterator
      * @return void
      */
     public function dump($includeHeader = true) {
-        if ($includeHeader) {
+        if ($includeHeader && (count($this->csv) > 0 && array_diff($this->columns, $this->csv[0]))) {
             self::printLine($this->columns);
         }
         foreach ($this->csv as $data) {
