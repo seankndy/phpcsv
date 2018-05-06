@@ -109,7 +109,7 @@ class CSV implements \Iterator
      *
      * @return $this
      */
-    public function setFormatter(string $col, Formatter $formatter) {
+    public function setFormatter(string $col, Formatters\Formatter $formatter) {
         if (($colIndex = $this->columnIndex($col)) < 0) {
             throw new \InvalidArgumentException("Invalid/unknown column passed in: $col\n");
         }
