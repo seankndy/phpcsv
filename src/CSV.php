@@ -284,6 +284,9 @@ class CSV implements \Iterator
             return !in_array($v, $columns);
         });
         $this->columns[] = $newColumn;
+        if ($this->options['hasHeader']) {
+            $this->csv[0] = $this->columns;
+        }
     }
 
     /**
