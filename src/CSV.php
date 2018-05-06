@@ -33,8 +33,16 @@ class CSV implements \Iterator
         $this->options['preload'] = (!isset($options['preload']) || $options['preload']);
         $this->options['hasHeader'] = ((!isset($options['hasHeader']) && $file) || $options['headHeader']);
 
-        if ($this->file && $this->options['preload']) {
-            $this->load();
+        if ($this->file) {
+            if (!($this->fp = @\fopen($this->file, 'r'))) {
+                throw new \Exception("Failed to open file for reading: $file");
+            }
+            if ($this->options['preload']) {
+            	$this->load();
+            } else if ($this->options['hasHeader']) {
+                $this->defColumns($this->current());
+		$this->rewind();
+            }
         }
 
         return $this;
@@ -46,9 +54,6 @@ class CSV implements \Iterator
      * @return void
      */
     public function load() {
-        if (!($this->fp = @\fopen($this->file, 'r'))) {
-            throw new \Exception("Failed to open file for reading: $file");
-        }
         $first = true;
         while ($data = \fgetcsv($this->fp)) {
             if ($this->options['trim']) {
