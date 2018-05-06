@@ -262,7 +262,12 @@ class CSV implements \Iterator
             throw new \RuntimeException("CSV must be loaded (use load() method) in order to use this method.");
         }
 
+        $first = true;
         foreach ($this->csv as $i => $row) {
+            if ($first && $this->options['hasHeader']) {
+                $first = false;
+                continue;
+            }
             $newData = [];
             foreach ($columns as $col) {
                 if (($colIndex = $this->columnIndex($col)) < 0) {
