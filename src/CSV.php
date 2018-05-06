@@ -249,6 +249,38 @@ class CSV implements \Iterator
     }
 
     /**
+     * Combine two or more columns with optional delimiter
+     *
+     * @param string $delimiter Delimit each column with string
+     * @param array $columns Columns to combine
+     * @param string $newColumn Name of the new resulting column
+     *
+     * @return void
+     */
+    public function combineColumns(array $columns, string $newColumn, string $delimiter = ' ') {
+        if (!$this->loaded) {
+            throw new \RuntimeException("CSV must be loaded (use load() method) in order to use this method.");
+        }
+
+        foreach ($this->csv as $i => $row) {
+            $newData = [];
+            foreach ($columns as $col) {
+                if (($colIndex = $this->columnIndex($col)) < 0) {
+                    throw new \InvalidArgumentException("Invalid/unknown column: $col\n");
+                }
+                $newData[] = $row[$colIndex];
+                unset($row[$colIndex]);
+            }
+            $row[] = implode($delimiter, $newData);
+            $this->csv[$i][] = array_values($row);
+        }
+
+        $this->columns = array_filter($this->columns, function ($v) {
+            return in_array($v, $columns);
+        });
+    }
+
+    /**
      * Fill $theseColumns of $this CSV with $thoseColumns of another CSV.
      * Key/filter the two CSVs together by matching $thisKeyColumn in $this
      * CSV and $thatKeyColumn in $that.  If $theseColumns is empty, then
@@ -265,7 +297,7 @@ class CSV implements \Iterator
     public function fillFrom(CSV $that, $thisKeyColumn, $thatKeyColumn,
         array $theseColumns, array $thoseColumns) {
         if (!$this->loaded) {
-            throw new \RuntimeException("CSV must be loaded into memory (use load() method) in order to use this method.");
+            throw new \RuntimeException("CSV must be loaded (use load() method) in order to use this method.");
         }
         if (($thisKeyIndex = $this->columnIndex($thisKeyColumn)) < 0) {
             throw new \InvalidArgumentException("\$thisKeyColumn ($thisKeyColumn) is undefined!");
