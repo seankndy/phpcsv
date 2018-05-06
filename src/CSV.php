@@ -31,7 +31,7 @@ class CSV implements \Iterator
 
         $this->options['trim'] = !isset($options['trim']) || $options['trim'];
         $this->options['preload'] = (!isset($options['preload']) || $options['preload']);
-        $this->options['hasHeader'] = (!isset($options['hasHeader']) || $options['headHeader']);
+        $this->options['hasHeader'] = ((!isset($options['hasHeader']) && $file) || $options['headHeader']);
 
         if ($this->file && $this->options['preload']) {
             $this->load();
@@ -144,7 +144,7 @@ class CSV implements \Iterator
      * @return void
      */
     public function dump($includeHeader = true) {
-        if ($includeHeader && (count($this->csv) > 0 && array_diff($this->columns, $this->csv[0]))) {
+        if ($includeHeader && !$this->options['hasHeader']) {
             self::printLine($this->columns);
         }
         foreach ($this->csv as $data) {
@@ -384,6 +384,11 @@ class CSV implements \Iterator
             if ($this->options['trim']) {
                 foreach ($data as $k => $v) {
                     $data[$k] = trim($v);
+                }
+            }
+            if ($this->position > 0 || !$this->options['hasHeader']) {
+                foreach ($this->formatters as $i => $formatter) {
+                    $data[$i] = $formatter->format($data[$i]);
                 }
             }
             if ($this->position == 0 && $this->options['hasHeader']) {
