@@ -1,0 +1,4 @@
+phpcsv is a collection of a few PHP classes to assist in dealing with CSV data.
+It is not meant to be full-featured or high-performance.  I regularly need to
+manipulate one-off CSV data and built a class to assist in many of the common
+things I keep re-writing.
