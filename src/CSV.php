@@ -269,7 +269,8 @@ class CSV implements \Iterator
             }
             $colIndexes[] = $colIndex;
         }
-        for ($i =  $this->options['hasHeader'] ? 1 : 0; $i < count($this->csv); $i++) {
+        for ($i = $this->options['hasHeader'] ? 1 : 0; $i < count($this->csv); $i++) {
+            $row = $this->csv[$i];
             $newData = [];
             foreach ($colIndexes as $colIndex) {
                 $newData[] = $row[$colIndex];
@@ -283,6 +284,7 @@ class CSV implements \Iterator
             return !in_array($v, $columns);
         });
         $this->columns[] = $newColumn;
+        $this->columns = array_values($this->columns);
         if ($this->options['hasHeader']) {
             $this->csv[0] = $this->columns;
         }
@@ -309,20 +311,20 @@ class CSV implements \Iterator
             if ($newPosition > count($row)) {
                 $row[] = $data;
             } else {
-                $row = array_splice($row, $newPosition, 0, $data);
+                array_splice($row, $newPosition, 0, $data);
             }
             if ($newPosition > $colIndex) {
                 unset($row[$colIndex]);
             } else {
-                unset($row[$colIndex-1]);
+                unset($row[$colIndex+1]);
             }
             $this->csv[$i] = array_values($row);
         }
-        $this->columns = array_splice($this->columns, $newPosition, 0, $column);
+        array_splice($this->columns, $newPosition, 0, $column);
         if ($newPosition > $colIndex) {
             unset($this->columns[$colIndex]);
         } else {
-            unset($this->columns[$colIndex-1]);
+            unset($this->columns[$colIndex+1]);
         }
         $this->columns = array_values($this->columns);
     }
