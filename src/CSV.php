@@ -113,6 +113,9 @@ class CSV implements \Iterator
         if (($colIndex = $this->columnIndex($col)) < 0) {
             throw new \InvalidArgumentException("Invalid/unknown column passed in: $col\n");
         }
+        foreach ($this->csv as $k => $data) {
+            $this->csv[$k][$colIndex] = $formatter->format($data[$colIndex]);
+        }
         $this->formatters[$colIndex] = $formatter;
         return $this;
     }
