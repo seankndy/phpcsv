@@ -142,7 +142,7 @@ class CSV implements \Iterator
     }
 
     /**
-     * Dump $this->csv to stdout
+     * Dump CSV to stdout
      *
      * @param boolean $includeHeader Include headers first or not
      *
@@ -152,7 +152,12 @@ class CSV implements \Iterator
         if ($includeHeader && !$this->options['hasHeader']) {
             self::printLine($this->columns);
         }
-        foreach ($this->csv as $data) {
+	$first = true;
+        foreach ($this as $data) {
+            if ($first) {
+                $first = false;
+		if (!$includeHeader) continue;
+            }
             self::printLine($data);
         }
     }
