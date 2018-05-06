@@ -10,6 +10,7 @@ class CSV implements \Iterator
     protected $csv = [];
     protected $columns = [];
     protected $options = [];
+    protected $formatters = [];
 
     // properties for Iterator
     protected $position = 0;
@@ -27,6 +28,7 @@ class CSV implements \Iterator
      */
     public function __construct($file = null, array $options = []) {
         $this->file = $file;
+
         $this->options['trim'] = !isset($options['trim']) || $options['trim'];
         $this->options['preload'] = (!isset($options['preload']) || $options['preload']);
         $this->options['hasHeader'] = (!isset($options['hasHeader']) || $options['headHeader']);
@@ -57,6 +59,9 @@ class CSV implements \Iterator
             if ($first && $this->options['hasHeader']) {
                 $this->columns = $data;
                 $first = false;
+            }
+            foreach ($this->formatters as $i => $formatter) {
+                $data[$i] = $formatter->format($data[$i]);
             }
             $this->csv[] = $data;
         }
@@ -93,6 +98,22 @@ class CSV implements \Iterator
      */
     public function defColumns(array $cols) {
         $this->columns = array_values($cols);
+        return $this;
+    }
+
+    /**
+     * Set data formatter (Formatter object) for column $col
+     *
+     * @param string $col Column name
+     * @param Formatter Formatter object to use on data in column $col
+     *
+     * @return $this
+     */
+    public function setFormatter(string $col, Formatter $formatter) {
+        if (($colIndex = $this->columnIndex($col)) < 0) {
+            throw new \InvalidArgumentException("Invalid/unknown column passed in: $col\n");
+        }
+        $this->formatters[$colIndex] = $formatter;
         return $this;
     }
 
@@ -158,6 +179,9 @@ class CSV implements \Iterator
         }
 
         if (isset($this->csv[$rowIndex])) {
+            if (isset($this->formatters[$colIndex])) {
+                $data = $this->formatters[$colIndex]->format($data);
+            }
             $this->csv[$rowIndex][$colIndex] = $data;
         } else {
             throw new \OutOfBoundsException("$rowIndex is out of bound.");
@@ -175,7 +199,9 @@ class CSV implements \Iterator
      * @return mixed
      */
     public function get($col, $rowIndex = -1) {
-        if (($index = $this->columnIndex($col)) < 0) {
+        if (is_int($col)) {
+            $index = $col;
+        } else if (($index = $this->columnIndex($col)) < 0) {
             throw new \InvalidArgumentException("Invalid/unknown column passed in: $col\n");
         }
         if ($rowIndex < 0) {
