@@ -262,17 +262,16 @@ class CSV implements \Iterator
             throw new \RuntimeException("CSV must be loaded (use load() method) in order to use this method.");
         }
 
-        $first = true;
-        foreach ($this->csv as $i => $row) {
-            if ($first && $this->options['hasHeader']) {
-                $first = false;
-                continue;
+        $colIndexes = [];
+        foreach ($columns as $col) {
+            if (($colIndex = $this->columnIndex($col)) < 0) {
+                throw new \InvalidArgumentException("Invalid/unknown column: $col\n");
             }
+            $colIndexes[] = $colIndex;
+        }
+        for ($i =  $this->options['hasHeader'] ? 1 : 0; $i < count($this->csv); $i++) {
             $newData = [];
-            foreach ($columns as $col) {
-                if (($colIndex = $this->columnIndex($col)) < 0) {
-                    throw new \InvalidArgumentException("Invalid/unknown column: $col\n");
-                }
+            foreach ($colIndexes as $colIndex) {
                 $newData[] = $row[$colIndex];
                 unset($row[$colIndex]);
             }
@@ -287,6 +286,45 @@ class CSV implements \Iterator
         if ($this->options['hasHeader']) {
             $this->csv[0] = $this->columns;
         }
+    }
+
+    /**
+     * Move a column to a new position
+     *
+     * @param string $column Column to move
+     * @param int $newPosition Position to move to
+     *
+     * @return void
+     */
+    public function moveColumn(string $column, int $newPosition) {
+        if (!$this->loaded) {
+            throw new \RuntimeException("CSV must be loaded (use load() method) in order to use this method.");
+        }
+        if (($colIndex = $this->columnIndex($column)) < 0) {
+            throw new \InvalidArgumentException("Invalid/unknown column: $column\n");
+        }
+
+        foreach ($this->csv as $i => $row) {
+            $data = $row[$colIndex];
+            if ($newPosition > count($row)) {
+                $row[] = $data;
+            } else {
+                $row = array_splice($row, $newPosition, 0, $data);
+            }
+            if ($newPosition > $colIndex) {
+                unset($row[$colIndex]);
+            } else {
+                unset($row[$colIndex-1]);
+            }
+            $this->csv[$i] = array_values($row);
+        }
+        $this->columns = array_splice($this->columns, $newPosition, 0, $column);
+        if ($newPosition > $colIndex) {
+            unset($this->columns[$colIndex]);
+        } else {
+            unset($this->columns[$colIndex-1]);
+        }
+        $this->columns = array_values($this->columns);
     }
 
     /**
