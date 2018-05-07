@@ -97,6 +97,27 @@ class CSV implements \Iterator
     }
 
     /**
+     * Delete column from CSV
+     *
+     * @param string $col Column name
+     *
+     * @return $this
+     */
+    public function deleteColumn($col) {
+        if (($k = array_search($col, $this->columns)) !== false) {
+            unset($this->columns[$k]);
+        }
+        $this->columns = array_values($this->columns);
+
+        foreach ($this->csv as $i => $row) {
+            unset($row[$k]);
+            $this->csv[$i] = array_values($row);
+        }
+        
+        return $this;
+    }
+
+    /**
      * Define all columns in CSV
      *
      * @param array $cols Column names
