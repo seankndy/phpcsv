@@ -352,8 +352,12 @@ class CSV implements \Iterator
             }
             $filterColIndexes[$colIndex] = $f;
         }
-        for ($rowIndex = ($this->options['hasHeader'] ? 1 : 0); $rowIndex < count($this->csv); $rowIndex++) {
-            $row = $this->csv[$rowIndex];
+        $first = true;
+        foreach ($this->csv as $rowIndex => $row) {
+            if ($first && $this->options['hasHeader']) {
+                $first = false;
+                continue;
+            }
             foreach ($filterColIndexes as $i => $f) {
                 if (!in_array($row[$i], $f)) {
                     unset($this->csv[$rowIndex]);
