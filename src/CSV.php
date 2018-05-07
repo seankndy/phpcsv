@@ -347,7 +347,10 @@ class CSV implements \Iterator
             if (!is_array($f)) {
                 $f = [$f]
             }
-            $filterColIndexes[$this->columnIndex($col)] = $f;
+            if (($colIndex = $this->columnIndex($col)) < 0) {
+                throw new \InvalidArgumentException("Invalid/unknown column: $col\n");
+            }
+            $filterColIndexes[$colIndex] = $f;
         }
         for ($rowIndex = ($this->options['hasHeader'] ? 1 : 0); $i < count($this->csv); $rowIndex++) {
             $row = $this->csv[$rowIndex];
