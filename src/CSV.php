@@ -345,7 +345,7 @@ class CSV implements \Iterator
         $filterColIndexes = [];
         foreach ($filter as $col => $f) {
             if (!is_array($f)) {
-                $f = [$f]
+                $f = [$f];
             }
             if (($colIndex = $this->columnIndex($col)) < 0) {
                 throw new \InvalidArgumentException("Invalid/unknown column: $col\n");
