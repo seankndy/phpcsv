@@ -41,7 +41,7 @@ class CSV implements \Iterator
             	$this->load();
             } else if ($this->options['hasHeader']) {
                 $this->defColumns($this->current());
-		$this->rewind();
+                $this->rewind();
             }
         }
 
@@ -327,6 +327,38 @@ class CSV implements \Iterator
             unset($this->columns[$colIndex+1]);
         }
         $this->columns = array_values($this->columns);
+    }
+
+    /**
+     * Filter rows from CSV based on data from column(s)
+     *
+     * @param array $filter Filter array, format: ['col_name' => ['1','2']]
+     *   the above example would remove any row in CSV where col_name is not
+     *   1 or 2
+     *
+     * @return void
+     */
+    public function filter(array $filter) {
+        if (!$this->loaded) {
+            throw new \RuntimeException("CSV must be loaded (use load() method) in order to use this method.");
+        }
+        $filterColIndexes = [];
+        foreach ($filter as $col => $f) {
+            if (!is_array($f)) {
+                $f = [$f]
+            }
+            $filterColIndexes[$this->columnIndex($col)] = $f;
+        }
+        for ($rowIndex = ($this->options['hasHeader'] ? 1 : 0); $i < count($this->csv); $rowIndex++) {
+            $row = $this->csv[$rowIndex];
+            foreach ($filterColIndexes as $i => $f) {
+                if (!in_array($row[$i], $f)) {
+                    unset($this->csv[$rowIndex]);
+                    break;
+                }
+            }
+        }
+        $this->csv = array_values($this->csv);
     }
 
     /**
