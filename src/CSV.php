@@ -63,7 +63,7 @@ class CSV implements \Iterator
             }
             if (!$first || !$this->options['hasHeader']) {
                 foreach ($this->formatters as $i => $formatter) {
-                    $data[$i] = $formatter->format($data[$i]);
+                    $data[$i] = $formatter($data[$i]);
                 }
             }
             if ($first && $this->options['hasHeader']) {
@@ -137,7 +137,7 @@ class CSV implements \Iterator
      *
      * @return $this
      */
-    public function setFormatter(string $col, Formatters\Formatter $formatter) {
+    public function setFormatter(string $col, callable $formatter) {
         if (($colIndex = $this->columnIndex($col)) < 0) {
             throw new \InvalidArgumentException("Invalid/unknown column passed in: $col\n");
         }
@@ -147,10 +147,26 @@ class CSV implements \Iterator
                 $first = false;
                 continue;
             }
-            $this->csv[$k][$colIndex] = $formatter->format($data[$colIndex]);
+            $this->csv[$k][$colIndex] = $formatter($data[$colIndex]);
         }
         $this->formatters[$colIndex] = $formatter;
         return $this;
+    }
+
+    /**
+     * Return callable formatter for column $col
+     *
+     * @param string $col Column name
+     *
+     * @return callable
+     */
+    public function getFormatter($col) {
+        if (is_int($col)) {
+            $colIndex = $col;
+        } else if (($colIndex = $this->columnIndex($col)) < 0) {
+            throw new \InvalidArgumentException("Invalid/unknown column passed in: $col\n");
+        }
+        return isset($this->formatters[$colIndex]) ? $this->formatters[$colIndex] : null;
     }
 
     /**
@@ -173,11 +189,11 @@ class CSV implements \Iterator
         if ($includeHeader && !$this->options['hasHeader']) {
             self::printLine($this->columns);
         }
-	$first = true;
+	    $first = true;
         foreach ($this as $data) {
             if ($first) {
                 $first = false;
-		if (!$includeHeader) continue;
+		        if (!$includeHeader) continue;
             }
             self::printLine($data);
         }
@@ -220,8 +236,8 @@ class CSV implements \Iterator
         }
 
         if (isset($this->csv[$rowIndex])) {
-            if (isset($this->formatters[$colIndex])) {
-                $data = $this->formatters[$colIndex]->format($data);
+            if ($formatter = $this->getFormatter($col)) {
+                $data = $formatter($data);
             }
             $this->csv[$rowIndex][$colIndex] = $data;
         } else {
@@ -539,7 +555,7 @@ class CSV implements \Iterator
             }
             if ($this->position > 0 || !$this->options['hasHeader']) {
                 foreach ($this->formatters as $i => $formatter) {
-                    $data[$i] = $formatter->format($data[$i]);
+                    $data[$i] = $formatter($data[$i]);
                 }
             }
             if ($this->position == 0 && $this->options['hasHeader']) {

@@ -20,7 +20,9 @@ $csv->dump();
 ```
 // format a date column, dump output
 $csv = new CSV('file.csv');
-$csv->setFormatter('date_of_birth', new Formatters\Date('m/d/Y'));
+$csv->setFormatter('date_of_birth', function($data) {
+    Formatters::date($data, 'm/d/Y');
+});
 $csv->dump();
 ```
 
