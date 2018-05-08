@@ -38,6 +38,7 @@ foreach (new CSV('file.csv', ['preload' => false]) as $data) {
 $csv = new CSV('file.csv');
 $csv->moveColumn('date_of_birth', 0); //  move to beginning
 $csv->dump();
+```
 
 ```
 // merge 2 columns together, separate by space. print changes to stdout
