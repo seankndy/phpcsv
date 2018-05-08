@@ -113,7 +113,7 @@ class CSV implements \Iterator
             unset($row[$k]);
             $this->csv[$i] = array_values($row);
         }
-        
+
         return $this;
     }
 
@@ -403,7 +403,7 @@ class CSV implements \Iterator
      *
      * @return void
      */
-    public function fillFrom(CSV $that, $thisKeyColumn, $thatKeyColumn,
+    public function join(CSV $that, $thisKeyColumn, $thatKeyColumn,
         array $theseColumns, array $thoseColumns) {
         if (!$this->loaded) {
             throw new \RuntimeException("CSV must be loaded (use load() method) in order to use this method.");
