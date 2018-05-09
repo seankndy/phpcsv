@@ -208,12 +208,12 @@ class CSV implements \Iterator
      * @return void
      */
     public function pickyDump(array $include, array $exclude = [], $includeHeader = true) {
-        $columns = array();
+        $columns = [];
         if ($include) {
             $columns = $include;
         } else if ($exclude) {
             $columns = array_filter($this->columns, function ($v) use ($exclude) {
-                return in_array($v, $exclude);
+                return !in_array($v, $exclude);
             });
         }
         if ($includeHeader && !$this->options['hasHeader']) {
