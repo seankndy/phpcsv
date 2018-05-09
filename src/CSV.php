@@ -200,6 +200,42 @@ class CSV implements \Iterator
     }
 
     /**
+     * Dump only certain columns of CSV to stdout
+     *
+     * @param array $include Columns to dump, mutually exclusive to $exclude
+     * @param array $exclude Columns not to dump, mutually exclusive to $include
+     *
+     * @return void
+     */
+    public function pickyDump(array $include, array $exclude, $includeHeader = true) {
+        $columns = array();
+        if ($include) {
+            $columns = $include;
+        } else if ($exclude) {
+            $columns = array_filter($this->columns, function ($v) use ($exclude) {
+                return in_array($v, $exclude);
+            });
+        }
+        if ($includeHeader && !$this->options['hasHeader']) {
+            self::printLine($columns);
+        }
+
+        $colIndexes = $this->columnIndexes($columns);
+	    $first = true;
+        foreach ($this as $data) {
+            if ($first) {
+                $first = false;
+		        if (!$includeHeader) continue;
+            }
+            self::printLine(
+                array_filter($data, function ($k) use ($colIndexes) {
+                    return in_array($k, $colIndexes);
+                }, ARRAY_FILTER_USE_KEY)
+            );
+        }
+    }
+
+    /**
      * Create new row and append to end of CSV
      *
      * @param array $fill Optional array containing values to fill into row
@@ -286,6 +322,21 @@ class CSV implements \Iterator
     }
 
     /**
+     * Fetch index/position of columns in $cols
+     *
+     * @param array $cols Column names
+     *
+     * @return array
+     */
+    public function columnIndexes(array $cols) {
+        $indexes = [];
+        foreach ($cols as $col) {
+            $indexes[] = $this->columnIndex($col);
+        }
+        return $indexes;
+    }
+
+    /**
      * Combine two or more columns with optional delimiter
      *
      * @param string $delimiter Delimit each column with string
@@ -299,13 +350,7 @@ class CSV implements \Iterator
             throw new \RuntimeException("CSV must be loaded (use load() method) in order to use this method.");
         }
 
-        $colIndexes = [];
-        foreach ($columns as $col) {
-            if (($colIndex = $this->columnIndex($col)) < 0) {
-                throw new \InvalidArgumentException("Invalid/unknown column: $col\n");
-            }
-            $colIndexes[] = $colIndex;
-        }
+        $colIndexes = $this->columnIndexes($columns);
         for ($i = $this->options['hasHeader'] ? 1 : 0; $i < count($this->csv); $i++) {
             $row = $this->csv[$i];
             $newData = [];
@@ -448,14 +493,9 @@ class CSV implements \Iterator
             }
             $theseColumns = $thoseColumns;
         } else {
-            foreach ($theseColumns as $c) {
-                $theseColumnIndexes[] = $this->columnIndex($c);
-            }
+            $theseColumnIndexes = $this->columnIndexes($theseColumns);
         }
-        $thoseColumnIndexes = [];
-        foreach ($thoseColumns as $c) {
-            $thoseColumnIndexes[] = $that->columnIndex($c);
-        }
+        $thoseColumnIndexes = $this->columnIndexes($thoseColumns);
 
         $outsideFirst = true;
         foreach ($this as $thisIndex => $thisData) {
