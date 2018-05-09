@@ -207,7 +207,7 @@ class CSV implements \Iterator
      *
      * @return void
      */
-    public function pickyDump(array $include, array $exclude, $includeHeader = true) {
+    public function pickyDump(array $include, array $exclude = [], $includeHeader = true) {
         $columns = array();
         if ($include) {
             $columns = $include;
