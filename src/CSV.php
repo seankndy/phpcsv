@@ -292,7 +292,7 @@ class CSV implements \Iterator
      */
     public function isInRecord($col, $value) {
         foreach ($this as $record) {
-            if ($record->get($col) == $val) {
+            if ($record->get($col) == $value) {
                 return true;
             }
         }
