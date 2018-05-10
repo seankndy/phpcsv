@@ -283,6 +283,23 @@ class CSV implements \Iterator
     }
 
     /**
+     * Determine if $value is set for $col any record
+     *
+     * @param string $value Value to check for
+     * @param string $col Column of interest
+     *
+     * @return boolean
+     */
+    public function isInRecord($col, $value) {
+        foreach ($this as $record) {
+            if ($record->get($col) == $val) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Combine two or more columns with optional delimiter
      *
      * @param string $delimiter Delimit each column with string
