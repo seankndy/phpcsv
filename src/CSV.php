@@ -498,7 +498,7 @@ class CSV implements \Iterator
         } else {
             $theseColumnIndexes = $this->columnIndexes($theseColumns);
         }
-        $thoseColumnIndexes = $this->columnIndexes($thoseColumns);
+        $thoseColumnIndexes = $that->columnIndexes($thoseColumns);
 
         $outsideFirst = true;
         foreach ($this as $thisIndex => $thisData) {
