@@ -331,7 +331,10 @@ class CSV implements \Iterator
     public function columnIndexes(array $cols) {
         $indexes = [];
         foreach ($cols as $col) {
-            $indexes[] = $this->columnIndex($col);
+            if (($index = $this->columnIndex($col)) < 0) {
+                throw new \InvalidArgumentException("Invalid/unknown column: $col\n");
+            }
+            $indexes[] = $index;
         }
         return $indexes;
     }
