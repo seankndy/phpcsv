@@ -5,16 +5,15 @@ class CSV implements \Iterator
 {
     protected $file;
     protected $fp;
+    protected $fileIndexes = [];
 
-    protected $loaded = false;
     protected $csv = [];
     protected $columns = [];
     protected $options = [];
     protected $formatters = [];
 
-    // properties for Iterator
+    // current Iterator position
     protected $position = 0;
-    protected $positionValid = true;
 
     /**
      * Constructor.  Specify CSV filename to load (optional) and whether or
@@ -31,21 +30,40 @@ class CSV implements \Iterator
 
         $this->options['trim'] = !isset($options['trim']) || $options['trim'];
         $this->options['preload'] = (!isset($options['preload']) || $options['preload']);
-        $this->options['hasHeader'] = ((!isset($options['hasHeader']) && $file) || $options['headHeader']);
+        $this->options['hasHeader'] = ((!isset($options['hasHeader']) && $file) || $options['hasHeader']);
 
         if ($this->file) {
             if (!($this->fp = @\fopen($this->file, 'r'))) {
                 throw new \Exception("Failed to open file for reading: $file");
             }
+
+            if ($this->options['hasHeader']) {
+                $this->setColumnsFromHeaderInFile();
+            } else {
+                $this->options['fileDataStartPos'] = 0;
+            }
+
             if ($this->options['preload']) {
-            	$this->load();
-            } else if ($this->options['hasHeader']) {
-                $this->defColumns($this->current());
-                $this->rewind();
+            	$this->loadFile();
+            } else {
+                $this->indexFile();
             }
         }
 
         return $this;
+    }
+
+
+    /**
+     * Set columns from the first line in CSV
+     *
+     * @return void
+     */
+    public function setColumnsFromHeaderInFile() {
+        fseek($this->fp, 0);
+        $this->columns = fgetcsv($this->fp);
+        $this->options['fileDataStartPos'] = ftell($this->fp);
+        array_walk($this->columns, function (&$v,$k) { $v = trim($v); });
     }
 
     /**
@@ -53,27 +71,27 @@ class CSV implements \Iterator
      *
      * @return void
      */
-    public function load() {
+    public function loadFile() {
         $first = true;
-        while ($data = \fgetcsv($this->fp)) {
-            if ($this->options['trim']) {
-                foreach ($data as $k => $v) {
-                    $data[$k] = trim($v);
-                }
-            }
-            if (!$first || !$this->options['hasHeader']) {
-                foreach ($this->formatters as $i => $formatter) {
-                    $data[$i] = $formatter($data[$i]);
-                }
-            }
-            if ($first && $this->options['hasHeader']) {
-                $this->columns = $data;
-                $first = false;
-            }
-            $this->csv[] = $data;
+        fseek($this->fp, $this->options['fileDataStartPos']);
+        while ($data = fgetcsv($this->fp)) {
+            $this->csv[] = new Record($this, $data, $this->options['trim']);
         }
         \fclose($this->fp);
         $this->loaded = true;
+    }
+
+    /**
+     * Index file at $this->fp (record each start line position)
+     *
+     * @return void
+     */
+    protected function indexFile() {
+        $this->fileIndexes = [];
+        fseek($this->fp, $this->options['fileDataStartPos']);
+        for ($pos = $this->options['fileDataStartPos']; $buf = fgets($this->fp); $pos += strlen($buf)) {
+            $this->fileIndexes[] = $pos;
+        }
     }
 
     /**
@@ -86,12 +104,10 @@ class CSV implements \Iterator
      */
     public function addColumn($col, $fill = '') {
         $this->columns[] = $col;
-        $i = 0;
-        if ($this->options['hasHeader']) {
-            $this->csv[$i++][] = $col;
-        }
-        for (; $i < count($this->csv); $i++) {
-            $this->csv[$i][] = $fill;
+        if ($fill) {
+            foreach ($this->csv as $record) {
+                $record->set($col, $fill);
+            }
         }
         return $this;
     }
@@ -103,15 +119,16 @@ class CSV implements \Iterator
      *
      * @return $this
      */
-    public function deleteColumn($col) {
+    public function deleteColumn($col, $clean = true) {
         if (($k = array_search($col, $this->columns)) !== false) {
             unset($this->columns[$k]);
         }
         $this->columns = array_values($this->columns);
 
-        foreach ($this->csv as $i => $row) {
-            unset($row[$k]);
-            $this->csv[$i] = array_values($row);
+        if ($clean) {
+            foreach ($this->csv as $record) {
+                $record->delete($col);
+            }
         }
 
         return $this;
@@ -124,32 +141,35 @@ class CSV implements \Iterator
      *
      * @return $this
      */
-    public function defColumns(array $cols) {
+    public function setColumns(array $cols) {
+        if (count($cols) != count(array_unique($cols))) {
+            throw new \RuntimeException("\$cols must have unique elements.");
+        }
         $this->columns = array_values($cols);
         return $this;
     }
 
     /**
-     * Set data formatter (Formatter object) for column $col
+     * Does column exist?
+     *
+     * @param string $col Column to check
+     *
+     * @return boolean
+     */
+    public function columnExists(string $col) {
+        return in_array($col, $this->columns);
+    }
+
+    /**
+     * Set data formatter for column $col
      *
      * @param string $col Column name
-     * @param Formatter Formatter object to use on data in column $col
+     * @param callable Function to format data in column $col
      *
      * @return $this
      */
     public function setFormatter(string $col, callable $formatter) {
-        if (($colIndex = $this->columnIndex($col)) < 0) {
-            throw new \InvalidArgumentException("Invalid/unknown column passed in: $col\n");
-        }
-        $first = true;
-        foreach ($this->csv as $k => $data) {
-            if ($first && $this->options['hasHeader']) {
-                $first = false;
-                continue;
-            }
-            $this->csv[$k][$colIndex] = $formatter($data[$colIndex]);
-        }
-        $this->formatters[$colIndex] = $formatter;
+        $this->formatters[$col] = $formatter;
         return $this;
     }
 
@@ -161,12 +181,7 @@ class CSV implements \Iterator
      * @return callable
      */
     public function getFormatter($col) {
-        if (is_int($col)) {
-            $colIndex = $col;
-        } else if (($colIndex = $this->columnIndex($col)) < 0) {
-            throw new \InvalidArgumentException("Invalid/unknown column passed in: $col\n");
-        }
-        return isset($this->formatters[$colIndex]) ? $this->formatters[$colIndex] : null;
+        return isset($this->formatters[$col]) ? $this->formatters[$col] : null;
     }
 
     /**
@@ -186,16 +201,11 @@ class CSV implements \Iterator
      * @return void
      */
     public function dump($includeHeader = true) {
-        if ($includeHeader && !$this->options['hasHeader']) {
+        if ($includeHeader) {
             self::printLine($this->columns);
         }
-	    $first = true;
-        foreach ($this as $data) {
-            if ($first) {
-                $first = false;
-		        if (!$includeHeader) continue;
-            }
-            self::printLine($data);
+        foreach ($this as $record) {
+            self::printLine($record->getAll());
         }
     }
 
@@ -216,20 +226,15 @@ class CSV implements \Iterator
                 return !in_array($v, $exclude);
             });
         }
-        if ($includeHeader && !$this->options['hasHeader']) {
+        if ($includeHeader) {
             self::printLine($columns);
         }
 
-        $colIndexes = $this->columnIndexes($columns);
 	    $first = true;
-        foreach ($this as $data) {
-            if ($first) {
-                $first = false;
-		        if (!$includeHeader) continue;
-            }
+        foreach ($this as $record) {
             self::printLine(
-                array_filter($data, function ($k) use ($colIndexes) {
-                    return in_array($k, $colIndexes);
+                array_filter($record->getAll(), function ($k) use ($columns) {
+                    return in_array($k, $columns);
                 }, ARRAY_FILTER_USE_KEY)
             );
         }
@@ -242,101 +247,39 @@ class CSV implements \Iterator
      *
      * @return int Row index of newly inserted row
      */
-    public function appendRow(array $fill = []) {
-        $row = array_fill(0, count($this->columns)-1, '');
-        if ($fill) {
-            $row = array_merge($row, $fill);
-        }
-        ksort($row);
-        return array_push($this->csv, $row);
+    public function appendRecord(array $fill = []) {
+        return array_push($this->csv, new Record($this, $fill, $this->options['trim']));
     }
 
     /**
-     * Insert $data for column $col into either row at $rowIndex or
-     * new row appended (if $rowIndex < 0)
+     * Fetch record from a specific row
+     * If $rowIndex < 0, then fetch last record
      *
-     * @param mixed $col Column name or index of column to insert into
-     * @param string $data Data to insert into column
+     * @param int $row Index of row to fetch or -1 to fetch last record.
      *
-     * @return void
+     * @return Record
      */
-    public function insert($col, $data, $rowIndex = -1) {
-        if (is_int($col)) {
-            $colIndex = $col;
-        } else if (($colIndex = $this->columnIndex($col)) < 0) {
-            throw new \InvalidArgumentException("Invalid/unknown column passed in: $col\n");
-        }
-
-        if ($rowIndex < 0) {
-            $rowIndex = count($this->csv)-1;
-        }
-
-        if (isset($this->csv[$rowIndex])) {
-            if ($formatter = $this->getFormatter($col)) {
-                $data = $formatter($data);
+    public function get($row = -1) {
+        if ($this->csv) {
+            if ($row < 0) {
+                return $this->csv[count($this->csv)-1];
+            } else if ($row >= count($this->csv)) {
+                throw new \OutOfBoundsException("Row $row is out of bounds!");
+            } else {
+                return $this->csv[$row];
             }
-            $this->csv[$rowIndex][$colIndex] = $data;
         } else {
-            throw new \OutOfBoundsException("$rowIndex is out of bound.");
-        }
-    }
-
-    /**
-     * Fetch data from a specific row and column.
-     * If $rowIndex < 0, then fetch data from the last row.
-     *
-     * @param string $col Column name to fetch (as specified in defColumn())
-     * @param int    $rowIndex Index of row to fetch or -1 to fetch from
-     *     uncommitted row.
-     *
-     * @return mixed
-     */
-    public function get($col, $rowIndex = -1) {
-        if (is_int($col)) {
-            $index = $col;
-        } else if (($index = $this->columnIndex($col)) < 0) {
-            throw new \InvalidArgumentException("Invalid/unknown column passed in: $col\n");
-        }
-        if ($rowIndex < 0) {
-            $rowIndex = count($this->csv)-1;
-        }
-
-        if (isset($this->csv[$rowIndex])) {
-            return $this->csv[$rowIndex][$index];
-        }
-        return null;
-    }
-
-    /**
-     * Fetch index/position of column $col
-     *
-     * @param string $col Column name
-     *
-     * @return int
-     */
-    public function columnIndex($col) {
-        if (($index = array_search($col, $this->columns)) === false) {
-            return -1;
-        }
-        return $index;
-    }
-
-    /**
-     * Fetch index/position of columns in $cols
-     *
-     * @param array $cols Column names
-     *
-     * @return array
-     */
-    public function columnIndexes(array $cols) {
-        $indexes = [];
-        foreach ($cols as $col) {
-            if (($index = $this->columnIndex($col)) < 0) {
-                throw new \InvalidArgumentException("Invalid/unknown column: $col\n");
+            if ($row < 0) {
+                $seekTo = $this->fileIndexes[count($this->fileIndexes)-1];
+            } else if ($row > 0) {
+                if ($row >= count($this->fileIndexes)) {
+                    throw new \OutOfBoundsException("Row $row is out of bounds!");
+                }
+                $seekTo = $this->fileIndexes[$row];
             }
-            $indexes[] = $index;
+            fseek($this->fp, $seekTo);
+            return new Record($this, fgetcsv($this->fp), $this->options['trim']);
         }
-        return $indexes;
     }
 
     /**
@@ -349,73 +292,30 @@ class CSV implements \Iterator
      * @return void
      */
     public function combineColumns(array $columns, string $newColumn, string $delimiter = ' ') {
-        if (!$this->loaded) {
-            throw new \RuntimeException("CSV must be loaded (use load() method) in order to use this method.");
+        if (!$this->csv) {
+            throw new \RuntimeException("CSV must be in memory to use this method.");
         }
 
-        $colIndexes = $this->columnIndexes($columns);
-        for ($i = $this->options['hasHeader'] ? 1 : 0; $i < count($this->csv); $i++) {
-            $row = $this->csv[$i];
-            $newData = [];
-            foreach ($colIndexes as $colIndex) {
-                $newData[] = $row[$colIndex];
-                unset($row[$colIndex]);
+        $this->addColumn($newColumn);
+        foreach ($this as $record) {
+            $newVals = [];
+            foreach ($columns as $col) {
+                $newVals[] = $record->get($col);
+                $record->delete($col);
             }
-            $row[] = implode($delimiter, $newData);
-            $this->csv[$i] = array_values($row);
+            $record->set($newColumn, implode($delimiter, $newVals));
+
         }
 
-        $this->columns = array_filter($this->columns, function ($v) use ($columns) {
-            return !in_array($v, $columns);
-        });
-        $this->columns[] = $newColumn;
-        $this->columns = array_values($this->columns);
-        if ($this->options['hasHeader']) {
-            $this->csv[0] = $this->columns;
+        foreach ($columns as $col) {
+             // second arg is $clean and it's false because
+             // i've already deleted the old columns above
+            $this->deleteColumn($col, false);
         }
     }
 
     /**
-     * Move a column to a new position
-     *
-     * @param string $column Column to move
-     * @param int $newPosition Position to move to
-     *
-     * @return void
-     */
-    public function moveColumn(string $column, int $newPosition) {
-        if (!$this->loaded) {
-            throw new \RuntimeException("CSV must be loaded (use load() method) in order to use this method.");
-        }
-        if (($colIndex = $this->columnIndex($column)) < 0) {
-            throw new \InvalidArgumentException("Invalid/unknown column: $column\n");
-        }
-
-        foreach ($this->csv as $i => $row) {
-            $data = $row[$colIndex];
-            if ($newPosition > count($row)) {
-                $row[] = $data;
-            } else {
-                array_splice($row, $newPosition, 0, $data);
-            }
-            if ($newPosition > $colIndex) {
-                unset($row[$colIndex]);
-            } else {
-                unset($row[$colIndex+1]);
-            }
-            $this->csv[$i] = array_values($row);
-        }
-        array_splice($this->columns, $newPosition, 0, $column);
-        if ($newPosition > $colIndex) {
-            unset($this->columns[$colIndex]);
-        } else {
-            unset($this->columns[$colIndex+1]);
-        }
-        $this->columns = array_values($this->columns);
-    }
-
-    /**
-     * Filter rows from CSV based on data from column(s)
+     * Filter records from CSV based on data from column(s)
      *
      * @param array $filter Filter array, format: ['col_name' => ['1','2']]
      *   the above example would remove any row in CSV where col_name is not
@@ -424,28 +324,20 @@ class CSV implements \Iterator
      * @return void
      */
     public function filter(array $filter) {
-        if (!$this->loaded) {
-            throw new \RuntimeException("CSV must be loaded (use load() method) in order to use this method.");
+        if (!$this->csv) {
+            throw new \RuntimeException("CSV must be in memory to use this method.");
         }
-        $filterColIndexes = [];
+
         foreach ($filter as $col => $f) {
             if (!is_array($f)) {
-                $f = [$f];
+                $filter[$col] = [$f];
             }
-            if (($colIndex = $this->columnIndex($col)) < 0) {
-                throw new \InvalidArgumentException("Invalid/unknown column: $col\n");
-            }
-            $filterColIndexes[$colIndex] = $f;
         }
-        $first = true;
-        foreach ($this->csv as $rowIndex => $row) {
-            if ($first && $this->options['hasHeader']) {
-                $first = false;
-                continue;
-            }
-            foreach ($filterColIndexes as $i => $f) {
-                if (!in_array($row[$i], $f)) {
-                    unset($this->csv[$rowIndex]);
+
+        foreach ($this->csv as $k => $record) {
+            foreach ($filter as $col => $f) {
+                if (!in_array($record->get($col), $f)) {
+                    unset($this->csv[$k]);
                     break;
                 }
             }
@@ -469,14 +361,14 @@ class CSV implements \Iterator
      */
     public function join(CSV $that, $thisKeyColumn, $thatKeyColumn,
         array $theseColumns, array $thoseColumns) {
-        if (!$this->loaded) {
-            throw new \RuntimeException("CSV must be loaded (use load() method) in order to use this method.");
+        if (!$this->csv) {
+            throw new \RuntimeException("CSV must be in memory in order to use this method.");
         }
-        if (($thisKeyIndex = $this->columnIndex($thisKeyColumn)) < 0) {
+        if (!$this->columnExists($thisKeyColumn)) {
             throw new \InvalidArgumentException("\$thisKeyColumn ($thisKeyColumn) is undefined!");
         }
-        if (!($thatKeyIndex = $that->columnIndex($thatKeyColumn)) < 0) {
-            throw new \InvalidArgumentException("\$thisKeyColumn ($thisKeyColumn) is undefined!");
+        if (!$that->columnExists($thatKeyColumn)) {
+            throw new \InvalidArgumentException("\$thatKeyColumn ($thatKeyColumn) is undefined in \$that CSV!");
         }
         if ($theseColumns && count($theseColumns) != count($thoseColumns)) {
             throw new \InvalidArgumentException("\$theseColumns must be same length as \$thoseColumns");
@@ -488,36 +380,20 @@ class CSV implements \Iterator
             throw new \InvalidArgumentException("\$thoseColumns contains undefined columns!");
         }
 
-        $theseColumnIndexes = [];
-        if (!$theseColumns) { // if $theseColumns empty, then append the columns
+        if (!$theseColumns) { // if $theseColumns empty, then append the columns as new ones
             foreach ($thoseColumns as $c) {
                 $this->addColumn($c);
-                $theseColumnIndexes[] = count($this->columns)-1;
             }
             $theseColumns = $thoseColumns;
-        } else {
-            $theseColumnIndexes = $this->columnIndexes($theseColumns);
         }
-        $thoseColumnIndexes = $that->columnIndexes($thoseColumns);
 
-        $outsideFirst = true;
-        foreach ($this as $thisIndex => $thisData) {
-            if ($outsideFirst && $this->options['hasHeader']) {
-                $outsideFirst = false;
-                continue;
-            }
-            $insideFirst = true;
-            foreach ($that as $thatIndex => $thatData) {
-                if ($insideFirst && $that->getOptions()['hasHeader']) {
-                    $insideFirst = false;
-                    continue;
-                }
-                if ($thisData[$thisKeyIndex] == $thatData[$thatKeyIndex]) {
-                    foreach ($thoseColumnIndexes as $i => $thatColIdx) {
-                        $this->insert(
-                            $theseColumnIndexes[$i],
-                            $thatData[$thatColIdx],
-                            $thisIndex
+        foreach ($this as $thisRecord) {
+            foreach ($that as $thatRecord) {
+                if ($thisRecord->get($thisKeyColumn) == $thatRecord->get($thatKeyColumn)) {
+                    foreach ($thoseColumns as $k => $thatCol) {
+                        $thisRecord->set(
+                            $theseColumns[$k],
+                            $thatRecord->get($thatCol)
                         );
                     }
                 }
@@ -541,14 +417,25 @@ class CSV implements \Iterator
      *
      * @return $this
      */
-    static public function printLine($data) {
+    static public function printLine(array $data) {
+        echo self::arrayToString($data);
+    }
+
+    /**
+     * Static method to return CSV representation of array of data
+     *
+     * @param array $data One-dimensional array to convert to CSV string
+     *
+     * @return string
+     */
+    static public function arrayToString(array $data) {
         $line = '';
         foreach ($data as $v) {
             $v = str_replace('"', '""', $v);
             $line .= "\"$v\",";
         }
         $line = rtrim($line, ',');
-        echo $line . "\n";
+        return $line . "\n";
     }
 
     /**
@@ -587,24 +474,11 @@ class CSV implements \Iterator
      * @return mixed
      */
     public function current() {
-        if ($this->loaded) {
+        if ($this->csv) {
             return $this->csv[$this->position];
         } else {
-            $data = \fgetcsv($this->fp);
-            if ($this->options['trim']) {
-                foreach ($data as $k => $v) {
-                    $data[$k] = trim($v);
-                }
-            }
-            if ($this->position > 0 || !$this->options['hasHeader']) {
-                foreach ($this->formatters as $i => $formatter) {
-                    $data[$i] = $formatter($data[$i]);
-                }
-            }
-            if ($this->position == 0 && $this->options['hasHeader']) {
-                $this->columns = $data;
-            }
-            return $data;
+            fseek($this->fp, $this->fileIndexes[$this->position]);
+            return new Record($this, fgetcsv($this->fp), $this->options['trim']);
         }
     }
 
@@ -623,11 +497,6 @@ class CSV implements \Iterator
      * @return void
      */
     public function next() {
-        if (!$this->loaded) {
-            $this->positionValid = (\fgets($this->fp) !== false);
-        } else {
-            $this->positionValid = ($this->position+1 < count($this->csv));
-        }
         $this->position++;
     }
 
@@ -637,10 +506,8 @@ class CSV implements \Iterator
      * @return void
      */
     public function rewind() {
-        if (!$this->loaded) {
-            $this->positionValid = (fseek($this->fp, 0) == 0);
-        } else {
-            $this->positionValid = true;
+        if (!$this->csv) {
+            fseek($this->fp, $this->options['fileDataStartPos']);
         }
         $this->position = 0;
     }
@@ -651,7 +518,11 @@ class CSV implements \Iterator
      * @return boolean
      */
     public function valid() {
-        return $this->positionValid;
+        if ($this->csv) {
+            return $this->position >= 0 && $this->position < count($this->csv);
+        } else {
+            return isset($this->fileIndexes[$this->position]);
+        }
     }
     //
     // End Iterator implementation

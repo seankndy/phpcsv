@@ -28,16 +28,15 @@ $csv->dump();
 
 ```
 // loop through file without loading into memory
-foreach (new CSV('file.csv', ['preload' => false]) as $data) {
-    print_r($data);
+foreach (new CSV('file.csv', ['preload' => false]) as $record) {
+    print_r($record->getAll());
 }
 ```
 
 ```
-// move a column, print changes to stdout
+// selectively print columns in arbitrary order
 $csv = new CSV('file.csv');
-$csv->moveColumn('date_of_birth', 0); //  move to beginning
-$csv->dump();
+$csv->pickyDump(['age','dob','name','sex']);
 ```
 
 ```
@@ -45,4 +44,22 @@ $csv->dump();
 $csv = new CSV('file.csv');
 $csv->combineColumns(['first_name','last_name'], 'name');
 $csv->dump();
+```
+
+```
+// manually get or set data from a record
+$csv = new CSV('file.csv');
+foreach ($csv as $record) {
+    $age = $record->get('age');
+    if ($age > 18) {
+        $record->set('is_adult', 'yes');
+    }
+}
+```
+
+```
+// filter records (in this case, any record where 'sex' column is not 'male'
+// would be removed)
+$csv = new CSV('file.csv');
+$csv->filter(['sex' => 'male']);
 ```
