@@ -176,6 +176,15 @@ class CSV
         return $mutate ? $this->applyHeaderMutations($this->columns) : $this->columns;
     }
 
+    /**
+     * Add a custom Mutator
+     *
+     * @return $this
+     */
+    public function addMutator(Mutators\Mutator $mutator) {
+        $this->mutators[] = $mutator;
+        return $this;
+    }
 
     /**
      * Create new row and append to end of CSV
