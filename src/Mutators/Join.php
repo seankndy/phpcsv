@@ -25,7 +25,7 @@ class Join implements Mutator
 
     public function mutate(Record $record) {
         $theseColumns = (!$this->theseColumns ? $this->thoseColumns : $this->theseColumns);
-        foreach ($this->that as $thatRecord) {
+        foreach ($this->that->getRecords() as $thatRecord) {
             if ($record->get($this->thisKeyColumn) == $thatRecord->get($this->thatKeyColumn)) {
                 foreach ($this->thoseColumns as $k => $thatCol) {
                     $record->set(

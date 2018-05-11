@@ -1,7 +1,7 @@
 <?php
 namespace SeanKndy\CSV;
 
-class CSV implements \Iterator
+class CSV
 {
     protected $file;
     protected $fp;
@@ -12,9 +12,6 @@ class CSV implements \Iterator
     protected $options = [];
     protected $formatters = [];
     protected $mutators = [];
-
-    // current Iterator position
-    protected $position = 0;
 
     /**
      * Constructor.  Specify CSV filename to load (optional) and whether or
@@ -179,52 +176,6 @@ class CSV implements \Iterator
         return $mutate ? $this->applyHeaderMutations($this->columns) : $this->columns;
     }
 
-    /**
-     * Dump CSV to stdout
-     *
-     * @param boolean $includeHeader Include headers first or not
-     *
-     * @return void
-     */
-    public function dump($includeHeader = true) {
-        if ($includeHeader) {
-            self::printLine($this->getColumns());
-        }
-        foreach ($this as $record) {
-            self::printLine($record->getAll());
-        }
-    }
-
-    /**
-     * Dump only certain columns of CSV to stdout
-     *
-     * @param array $include Columns to dump, mutually exclusive to $exclude
-     * @param array $exclude Columns not to dump, mutually exclusive to $include
-     *
-     * @return void
-     */
-    public function pickyDump(array $include, array $exclude = [], $includeHeader = true) {
-        $columns = [];
-        if ($include) {
-            $columns = $include;
-        } else if ($exclude) {
-            $columns = array_filter($this->getColumns(), function ($v) use ($exclude) {
-                return !in_array($v, $exclude);
-            });
-        }
-        if ($includeHeader) {
-            self::printLine($columns);
-        }
-
-	    $first = true;
-        foreach ($this as $record) {
-            $data = [];
-            foreach ($columns as $col) {
-                $data[] = $record->get($col);
-            }
-            self::printLine($data);
-        }
-    }
 
     /**
      * Create new row and append to end of CSV
@@ -300,23 +251,6 @@ class CSV implements \Iterator
     }
 
     /**
-     * Determine if $value is set for $col any record
-     *
-     * @param string $value Value to check for
-     * @param string $col Column of interest
-     *
-     * @return boolean
-     */
-    public function isInRecord($col, $value) {
-        foreach ($this as $record) {
-            if ($record->get($col) == $value) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
      * Combine two or more columns with optional delimiter
      *
      * @param string $delimiter Delimit each column with string
@@ -330,34 +264,12 @@ class CSV implements \Iterator
     }
 
     /**
-     * Filter records from CSV based on data from column(s)
+     * Get a new Records iterator object
      *
-     * @param array $filter Filter array, format: ['col_name' => ['1','2']]
-     *   the above example would remove any row in CSV where col_name is not
-     *   1 or 2
-     *
-     * @return void
+     * @return Records
      */
-    public function filter(array $filter) {
-        if (!$this->csv) {
-            throw new \RuntimeException("CSV must be in memory to use this method.");
-        }
-
-        foreach ($filter as $col => $f) {
-            if (!is_array($f)) {
-                $filter[$col] = [$f];
-            }
-        }
-
-        foreach ($this->csv as $k => $record) {
-            foreach ($filter as $col => $f) {
-                if (!in_array($record->get($col), $f)) {
-                    unset($this->csv[$k]);
-                    break;
-                }
-            }
-        }
-        $this->csv = array_values($this->csv);
+    public function getRecords() {
+        return new Records($this);
     }
 
     /**
@@ -406,6 +318,19 @@ class CSV implements \Iterator
      */
     public function getOptions() {
         return $this->options;
+    }
+
+    /**
+     * Return number of records
+     *
+     * @return int
+     */
+    public function getNumRecords() {
+        if ($this->csv) {
+            return count($this->csv);
+        } else {
+            return count($this->fileIndexes);
+        }
     }
 
     /**
@@ -462,62 +387,4 @@ class CSV implements \Iterator
         }
         \fclose($fp);
     }
-
-    //
-    // Itearator implementation
-    //
-    /**
-     * Get current CSV line from either local memory or file
-     *
-     * @return mixed
-     */
-    public function current() {
-        return $this->get($this->position);
-    }
-
-    /**
-     * Get current key (position)
-     *
-     * @return int
-     */
-    public function key() {
-        return $this->position;
-    }
-
-    /**
-     * Move to next line in CSV
-     *
-     * @return void
-     */
-    public function next() {
-        $this->position++;
-    }
-
-    /**
-     * Rewind to beginning of CSV
-     *
-     * @return void
-     */
-    public function rewind() {
-        if (!$this->csv) {
-            fseek($this->fp, $this->options['fileDataStartPos']);
-        }
-        $this->position = 0;
-    }
-
-    /**
-     * Return true/false depending on if current line is valid.
-     *
-     * @return boolean
-     */
-    public function valid() {
-        if ($this->csv) {
-            return $this->position >= 0 && $this->position < count($this->csv);
-        } else {
-            return isset($this->fileIndexes[$this->position]);
-        }
-    }
-    //
-    // End Iterator implementation
-    //
 }

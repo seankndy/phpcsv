@@ -14,7 +14,7 @@ A few examples:
 // fill it into the 'user' column of file.csv.  then dump changes to stdout.
 $csv = new CSV('file.csv');
 $csv->join(new CSV('other_file.csv'), 'id', 'fid', ['user'], ['username']));
-$csv->dump();
+$csv->getRecords()->dump();
 ```
 
 ```
@@ -23,12 +23,12 @@ $csv = new CSV('file.csv');
 $csv->setFormatter('date_of_birth', function($data) {
     return Formatters::date($data, 'm/d/Y');
 });
-$csv->dump();
+$csv->getRecords()->dump();
 ```
 
 ```
 // loop through file without loading into memory
-foreach (new CSV('file.csv', ['preload' => false]) as $record) {
+foreach (new CSV('file.csv', ['preload' => false])->getRecords() as $record) {
     print_r($record->getAll());
 }
 ```
@@ -36,22 +36,22 @@ foreach (new CSV('file.csv', ['preload' => false]) as $record) {
 ```
 // selectively print columns in arbitrary order
 $csv = new CSV('file.csv');
-$csv->pickyDump(['age','dob','name','sex']);
+$csv->getRecords()->pickyDump(['age','dob','name','sex']);
 ```
 
 ```
 // merge 2 columns together, separate by space. print changes to stdout
 $csv = new CSV('file.csv');
 $csv->combineColumns(['first_name','last_name'], 'name');
-$csv->dump();
+$csv->getRecords()->dump();
 ```
 
 ```
 // manually get or set data from a record
 $csv = new CSV('file.csv');
-foreach ($csv as $record) {
+foreach ($csv->getRecords() as $record) {
     $age = $record->get('age');
-    if ($age > 18) {
+    if ($age >= 18) {
         $record->set('is_adult', 'yes');
     }
 }
@@ -61,5 +61,5 @@ foreach ($csv as $record) {
 // filter records (in this case, any record where 'sex' column is not 'male'
 // would be removed)
 $csv = new CSV('file.csv');
-$csv->filter(['sex' => 'male']);
+$csv->getRecords()->filter(['sex' => 'male'])->dump();
 ```
