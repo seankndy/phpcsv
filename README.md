@@ -17,6 +17,8 @@ It is similar to an SQL join, for example:
   select file.*, other_file.username from file
   left join other_file on file.id = other_file.fid
 ```
+use SeanKndy\CSV\CSV;
+
 $csv = new CSV('file.csv');
 $csv->join(new CSV('other_file.csv'), 'id', 'fid', ['user'], ['username']));
 $csv->getRecords()->dump();
@@ -24,6 +26,9 @@ $csv->getRecords()->dump();
 
 Format a date column, dump output:
 ```
+use SeanKndy\CSV\CSV;
+use SeanKndy\CSV\Formatters;
+
 $csv = new CSV('file.csv');
 $csv->setFormatter('date_of_birth', function($data) {
     return Formatters::date($data, 'm/d/Y');
@@ -33,6 +38,8 @@ $csv->getRecords()->dump();
 
 Loop through file without loading into memory:
 ```
+use SeanKndy\CSV\CSV;
+
 foreach (new CSV('file.csv', ['preload' => false])->getRecords() as $record) {
     print_r($record->getAll());
 }
@@ -40,12 +47,16 @@ foreach (new CSV('file.csv', ['preload' => false])->getRecords() as $record) {
 
 Selectively print columns in arbitrary order:
 ```
+use SeanKndy\CSV\CSV;
+
 $csv = new CSV('file.csv');
 $csv->getRecords()->pickyDump(['age','dob','name','sex']);
 ```
 
 Merge 2 columns together, separate by space. print changes to stdout
 ```
+use SeanKndy\CSV\CSV;
+
 $csv = new CSV('file.csv');
 $csv->combineColumns(['first_name','last_name'], 'name');
 $csv->getRecords()->dump();
@@ -53,6 +64,8 @@ $csv->getRecords()->dump();
 
 Manually get or set data from a record:
 ```
+use SeanKndy\CSV\CSV;
+
 $csv = new CSV('file.csv');
 foreach ($csv->getRecords() as $record) {
     $age = $record->get('age');
@@ -65,6 +78,8 @@ foreach ($csv->getRecords() as $record) {
 Filter records (in this case, any record where 'sex' column is not 'male'
 would be removed):
 ```
+use SeanKndy\CSV\CSV;
+
 $csv = new CSV('file.csv');
 $csv->getRecords()->filter(['sex' => 'male'])->dump();
 ```
@@ -73,6 +88,11 @@ Example of adding a custom Mutator to manipulate some data in records.  In this
 case, we make sure the comma-separate Rate Group(s) column is paired with the
 same number of Billing Frequency items:
 ```
+use SeanKndy\CSV\CSV;
+use SeanKndy\CSV\Record;
+use SeanKndy\CSV\Mutators\Mutator;
+
+$csv = new CSV('customers.csv');
 $csv->addMutator(new class extends Mutator {
     public function mutate(Record $record) {
         $rateGroups = preg_split('/,\s*/', $record->get('Rate Group(s)'));
