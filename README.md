@@ -68,3 +68,30 @@ would be removed)
 $csv = new CSV('file.csv');
 $csv->getRecords()->filter(['sex' => 'male'])->dump();
 ```
+
+Example of adding a custom Mutator to manipulate some data in records.  In this
+case, we make sure the comma-separate Rate Group(s) column is paired with the
+same number of Billing Frequency items.
+```
+$csv->addMutator(new class extends Mutator {
+    public function mutate(Record $record) {
+        $rateGroups = preg_split('/,\s*/', $record->get('Rate Group(s)'));
+        $billingFrequency = preg_split('/,\s*/', $record->get('Billing Frequency');
+
+        if (count($rateGroups) > count($billingFrequency)) {
+            // ex: if Rate Group(s) is '500,501,502' and Billing Frequency is '12'
+            // then this would update Billing Frequency to be '12,12,12' to pair
+            // with each of the Rate Group(s)
+            for ($i = count($billingFrequency); $i < count($rateGroups); $i++) {
+                $billingFrequency[] = $billingFrequency[0];
+            }
+            $record->set('Billing Frequency', implode(',', $billingFrequency));
+        } else if (count($rateGroups) < count($billingFrequency)) {
+            $billingFrequency = array_splice($billingFrequency, count($rateGroups));
+            $record->set('Billing Frequency', implode(',', $billingFrequency));
+        }
+
+        return $record;
+    }
+});
+```
