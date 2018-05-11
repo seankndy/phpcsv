@@ -6,7 +6,7 @@ use SeanKndy\CSV\Record;
 /**
  * Create and append new column
  */
-class NewColumn implements Mutator
+class NewColumn extends Mutator
 {
     protected $newColumn;
     protected $fill;

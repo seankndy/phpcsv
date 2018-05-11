@@ -6,7 +6,7 @@ use SeanKndy\CSV\Record;
 /**
  * Combines two or more columns in a record into one
  */
-class MergeColumns implements Mutator
+class MergeColumns extends Mutator
 {
     protected $columns;
     protected $newColumn;

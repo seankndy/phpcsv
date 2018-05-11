@@ -5,9 +5,11 @@ use SeanKndy\CSV\CSV;
 use SeanKndy\CSV\Record;
 
 /**
- * Combines two or more columns in a record into one
+ * Joins data from another CSV ($that) into the Record
+ * (similar to an SQL join where each CSV object ($this and $that) is like
+ * an SQL table)
  */
-class Join implements Mutator
+class Join extends Mutator
 {
     protected $thisKeyColumn;
     protected $thatKeyColumn;

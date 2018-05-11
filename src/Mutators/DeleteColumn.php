@@ -6,7 +6,7 @@ use SeanKndy\CSV\Record;
 /**
  * Remove a column
  */
-class DeleteColumn implements Mutator
+class DeleteColumn extends Mutator
 {
     protected $column;
 

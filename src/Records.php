@@ -57,7 +57,7 @@ class Records implements \Iterator
      */
     public function dump($includeHeader = true) {
         if ($includeHeader) {
-            CSV::printLine($this->getColumns());
+            CSV::printLine($this->csv->getColumns());
         }
         foreach ($this as $record) {
             CSV::printLine($record->getAll());

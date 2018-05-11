@@ -6,7 +6,7 @@ use SeanKndy\CSV\Record;
 /**
  *
  */
-interface Mutator
+abstract class Mutator
 {
     /**
      * Apply mutation to $record and return it
@@ -15,16 +15,18 @@ interface Mutator
      *
      * @return Record
      */
-    public function mutate(Record $record);
+    abstract public function mutate(Record $record);
 
     /**
      * If this mutator modifies column structure, then this method should return
      * the re-worked (mutated) header array to reflect the same structure as
-     * mutate() performs.  Otherwise this method can just return $columns untouched.
+     * mutate() performs.  Otherwise no need to override this method.
      *
      * @param array $columns Array of column names
      *
      * @return array
      */
-    public function mutateHeader(array $columns);
+    public function mutateHeader(array $columns) {
+        return $columns;
+    }
 }
