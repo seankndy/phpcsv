@@ -12,6 +12,11 @@ A few examples:
 // this would look at the 'id' column in file.csv and match it with 'fid' column
 // in other_file.csv then take the 'username' column from other_file.csv and
 // fill it into the 'user' column of file.csv.  then dump changes to stdout.
+//
+// it is similar to an SQL join, for example:
+//   select file.*, other_file.username from file
+//     left join other_file on file.id = other_file.fid
+//
 $csv = new CSV('file.csv');
 $csv->join(new CSV('other_file.csv'), 'id', 'fid', ['user'], ['username']));
 $csv->getRecords()->dump();
