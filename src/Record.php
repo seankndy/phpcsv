@@ -8,7 +8,8 @@ class Record
 
     public function __construct(CSV $csv, array $data = [], $autoTrim = true) {
         $this->csv = $csv;
-        if (!$data) $data = array_fill(0, count($this->csv->getColumns())-1, '');
+        if (!$data)
+            $data = array_fill(0, count($this->csv->getColumns()), '');
         $this->setData($data, $autoTrim);
     }
 
@@ -20,13 +21,13 @@ class Record
      * @return $this
      */
     public function setData(array $data, $autoTrim = true) {
-        if (count($this->csv->getColumns()) != count($data)) {
+        if (count($this->csv->getColumns(false)) != count($data)) {
             throw new \RuntimeException("\$data must be the same number of elements as there are columns in CSV.");
         }
         if ($autoTrim) {
             array_walk($data, function (&$v,$k) { $v = trim($v); });
         }
-        $this->data = array_combine($this->csv->getColumns(), $data);
+        $this->data = array_combine($this->csv->getColumns(false), $data);
     }
 
     /**
@@ -37,9 +38,9 @@ class Record
      * @return string
      */
     public function get($col) {
-        if (!$this->csv->columnExists($col)) {
-            throw new \InvalidArgumentException("Invalid/unknown column '$col'\n");
-        }
+        //if (!$this->csv->columnExists($col)) {
+        //    throw new \InvalidArgumentException("Invalid/unknown column '$col'\n");
+        //}
 
         $v = isset($this->data[$col]) ? $this->data[$col] : '';
 
@@ -70,9 +71,7 @@ class Record
      */
     public function getAll() {
         $data = [];
-        foreach ($this->csv->getColumns() as $col) {
-            $v = isset($this->data[$col]) ? $this->data[$col] : '';
-
+        foreach ($this->data as $col => $v) {
             if ($f = $this->csv->getFormatter($col)) {
                 $data[$col] = $f($v);
             } else {
@@ -91,9 +90,9 @@ class Record
      * @return void
      */
     public function set($col, $data) {
-        if (!$this->csv->columnExists($col)) {
-            throw new \InvalidArgumentException("Invalid/unknown column '$col'\n");
-        }
+        //if (!$this->csv->columnExists($col)) {
+        //    throw new \InvalidArgumentException("Invalid/unknown column '$col'\n");
+        //}
         if ($formatter = $this->csv->getFormatter($col)) {
             $data = $formatter($data);
         }

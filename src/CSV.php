@@ -11,6 +11,7 @@ class CSV implements \Iterator
     protected $columns = [];
     protected $options = [];
     protected $formatters = [];
+    protected $mutators = [];
 
     // current Iterator position
     protected $position = 0;
@@ -103,12 +104,7 @@ class CSV implements \Iterator
      * @return $this
      */
     public function addColumn($col, $fill = '') {
-        $this->columns[] = $col;
-        if ($fill) {
-            foreach ($this->csv as $record) {
-                $record->set($col, $fill);
-            }
-        }
+        $this->mutators[] = new Mutators\NewColumn($col, $fill);
         return $this;
     }
 
@@ -119,18 +115,8 @@ class CSV implements \Iterator
      *
      * @return $this
      */
-    public function deleteColumn($col, $clean = true) {
-        if (($k = array_search($col, $this->columns)) !== false) {
-            unset($this->columns[$k]);
-        }
-        $this->columns = array_values($this->columns);
-
-        if ($clean) {
-            foreach ($this->csv as $record) {
-                $record->delete($col);
-            }
-        }
-
+    public function deleteColumn($col) {
+        $this->mutators[] = Mutators\DeleteColumn($col);
         return $this;
     }
 
@@ -157,7 +143,7 @@ class CSV implements \Iterator
      * @return boolean
      */
     public function columnExists(string $col) {
-        return in_array($col, $this->columns);
+        return in_array($col, $this->getColumns());
     }
 
     /**
@@ -189,8 +175,8 @@ class CSV implements \Iterator
      *
      * @return array
      */
-    public function getColumns() {
-        return $this->columns;
+    public function getColumns($mutate = true) {
+        return $mutate ? $this->applyHeaderMutations($this->columns) : $this->columns;
     }
 
     /**
@@ -202,7 +188,7 @@ class CSV implements \Iterator
      */
     public function dump($includeHeader = true) {
         if ($includeHeader) {
-            self::printLine($this->columns);
+            self::printLine($this->getColumns());
         }
         foreach ($this as $record) {
             self::printLine($record->getAll());
@@ -222,7 +208,7 @@ class CSV implements \Iterator
         if ($include) {
             $columns = $include;
         } else if ($exclude) {
-            $columns = array_filter($this->columns, function ($v) use ($exclude) {
+            $columns = array_filter($this->getColumns(), function ($v) use ($exclude) {
                 return !in_array($v, $exclude);
             });
         }
@@ -232,11 +218,11 @@ class CSV implements \Iterator
 
 	    $first = true;
         foreach ($this as $record) {
-            self::printLine(
-                array_filter($record->getAll(), function ($k) use ($columns) {
-                    return in_array($k, $columns);
-                }, ARRAY_FILTER_USE_KEY)
-            );
+            $data = [];
+            foreach ($columns as $col) {
+                $data[] = $record->get($col);
+            }
+            self::printLine($data);
         }
     }
 
@@ -248,7 +234,8 @@ class CSV implements \Iterator
      * @return int Row index of newly inserted row
      */
     public function appendRecord(array $fill = []) {
-        return array_push($this->csv, new Record($this, $fill, $this->options['trim']));
+        $this->csv[] = ($record = new Record($this, $fill, $this->options['trim']));
+        return $record;
     }
 
     /**
@@ -260,26 +247,56 @@ class CSV implements \Iterator
      * @return Record
      */
     public function get($row = -1) {
+        $record = null;
         if ($this->csv) {
             if ($row < 0) {
-                return $this->csv[count($this->csv)-1];
+                $record = $this->csv[count($this->csv)-1];
             } else if ($row >= count($this->csv)) {
                 throw new \OutOfBoundsException("Row $row is out of bounds!");
             } else {
-                return $this->csv[$row];
+                $record = $this->csv[$row];
             }
         } else {
             if ($row < 0) {
                 $seekTo = $this->fileIndexes[count($this->fileIndexes)-1];
-            } else if ($row > 0) {
-                if ($row >= count($this->fileIndexes)) {
-                    throw new \OutOfBoundsException("Row $row is out of bounds!");
-                }
+            } else if ($row >= count($this->fileIndexes)) {
+                throw new \OutOfBoundsException("Row $row is out of bounds!");
+            } else {
                 $seekTo = $this->fileIndexes[$row];
             }
             fseek($this->fp, $seekTo);
-            return new Record($this, fgetcsv($this->fp), $this->options['trim']);
+            $record = new Record($this, fgetcsv($this->fp), $this->options['trim']);
         }
+        return $this->applyRecordMutations($record);
+    }
+
+    /**
+     * Apply all mutations to a record
+     *
+     * @param Record $record
+     *
+     * @return Record
+     */
+    protected function applyRecordMutations(Record $record) {
+        $r = clone $record;
+        foreach ($this->mutators as $mutator) {
+            $r = $mutator->mutate($r);
+        }
+        return $r;
+    }
+
+    /**
+     * Apply all mutations to header columns
+     *
+     * @param array $columns
+     *
+     * @return array
+     */
+    protected function applyHeaderMutations(array $header) {
+        foreach ($this->mutators as $mutator) {
+            $header = $mutator->mutateHeader($header);
+        }
+        return $header;
     }
 
     /**
@@ -309,26 +326,7 @@ class CSV implements \Iterator
      * @return void
      */
     public function combineColumns(array $columns, string $newColumn, string $delimiter = ' ') {
-        if (!$this->csv) {
-            throw new \RuntimeException("CSV must be in memory to use this method.");
-        }
-
-        $this->addColumn($newColumn);
-        foreach ($this as $record) {
-            $newVals = [];
-            foreach ($columns as $col) {
-                $newVals[] = $record->get($col);
-                $record->delete($col);
-            }
-            $record->set($newColumn, implode($delimiter, $newVals));
-
-        }
-
-        foreach ($columns as $col) {
-             // second arg is $clean and it's false because
-             // i've already deleted the old columns above
-            $this->deleteColumn($col, false);
-        }
+        $this->mutators[] = new Mutators\MergeColumns($columns, $newColumn, $delimiter);
     }
 
     /**
@@ -378,9 +376,6 @@ class CSV implements \Iterator
      */
     public function join(CSV $that, $thisKeyColumn, $thatKeyColumn,
         array $theseColumns, array $thoseColumns) {
-        if (!$this->csv) {
-            throw new \RuntimeException("CSV must be in memory in order to use this method.");
-        }
         if (!$this->columnExists($thisKeyColumn)) {
             throw new \InvalidArgumentException("\$thisKeyColumn ($thisKeyColumn) is undefined!");
         }
@@ -390,32 +385,18 @@ class CSV implements \Iterator
         if ($theseColumns && count($theseColumns) != count($thoseColumns)) {
             throw new \InvalidArgumentException("\$theseColumns must be same length as \$thoseColumns");
         }
-        if (count(array_intersect($this->columns, $theseColumns)) != count($theseColumns)) {
+        if (count(array_intersect($this->getColumns(), $theseColumns)) != count($theseColumns)) {
             throw new \InvalidArgumentException("\$theseColumns contains undefined columns!");
         }
         if (count(array_intersect($that->getColumns(), $thoseColumns)) != count($thoseColumns)) {
             throw new \InvalidArgumentException("\$thoseColumns contains undefined columns!");
         }
 
-        if (!$theseColumns) { // if $theseColumns empty, then append the columns as new ones
-            foreach ($thoseColumns as $c) {
-                $this->addColumn($c);
-            }
-            $theseColumns = $thoseColumns;
-        }
-
-        foreach ($this as $thisRecord) {
-            foreach ($that as $thatRecord) {
-                if ($thisRecord->get($thisKeyColumn) == $thatRecord->get($thatKeyColumn)) {
-                    foreach ($thoseColumns as $k => $thatCol) {
-                        $thisRecord->set(
-                            $theseColumns[$k],
-                            $thatRecord->get($thatCol)
-                        );
-                    }
-                }
-            }
-        }
+        $this->mutators[] = new Mutators\Join(
+            $that,
+            $thisKeyColumn, $thatKeyColumn,
+            $theseColumns, $thoseColumns
+        );
     }
 
     /**
@@ -491,12 +472,7 @@ class CSV implements \Iterator
      * @return mixed
      */
     public function current() {
-        if ($this->csv) {
-            return $this->csv[$this->position];
-        } else {
-            fseek($this->fp, $this->fileIndexes[$this->position]);
-            return new Record($this, fgetcsv($this->fp), $this->options['trim']);
-        }
+        return $this->get($this->position);
     }
 
     /**

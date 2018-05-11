@@ -1,7 +1,7 @@
 phpcsv is a small PHP package to assist in dealing with CSV data.
 
-It is not meant to be full-featured or high-performance.  I regularly need to
-manipulate one-off CSV data and so I built this to assist in the common
+It is not meant to be full-featured or very high-performance.  I regularly need
+to manipulate one-off CSV data and so I built this to assist in the common
 things I keep re-writing like formatting a date or merging 2 CSVs together.
 
 A few examples:
