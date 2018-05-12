@@ -6,11 +6,11 @@ class Record
     protected $csv;
     protected $data = [];
 
-    public function __construct(CSV $csv, array $data = [], $autoTrim = true) {
+    public function __construct(CSV $csv, array $data = []) {
         $this->csv = $csv;
         if (!$data)
             $data = array_fill(0, count($this->csv->getColumns()), '');
-        $this->setData($data, $autoTrim);
+        $this->setData($data);
     }
 
     /**
@@ -20,11 +20,11 @@ class Record
      *
      * @return $this
      */
-    public function setData(array $data, $autoTrim = true) {
+    public function setData(array $data) {
         if (count($this->csv->getColumns(false)) != count($data)) {
             throw new \RuntimeException("\$data must be the same number of elements as there are columns in CSV.");
         }
-        if ($autoTrim) {
+        if ($this->csv->getOptions()['trim']) {
             array_walk($data, function (&$v,$k) { $v = trim($v); });
         }
         $this->data = array_combine($this->csv->getColumns(false), $data);

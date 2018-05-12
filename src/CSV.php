@@ -3,15 +3,42 @@ namespace SeanKndy\CSV;
 
 class CSV
 {
-    protected $file;
-    protected $fp;
-    protected $fileIndexes = [];
-
+    /**
+     * @var array $csv Array containing either each Record of CSV or an int
+     *                 holding position of each row in file.
+     */
     protected $csv = [];
+
+    /**
+     * @var array $columns Array containing header values.
+     */
     protected $columns = [];
+
+    /**
+     * @var array $options Array for options.
+     */
     protected $options = [];
+
+    /**
+     * @var array $formatters Array of colName => callable
+     */
     protected $formatters = [];
+
+    /**
+     * @var array $columns Array containing Mutators to call when fetching
+     *                     Record.
+     */
     protected $mutators = [];
+
+    /**
+     * @var string $file Filename of CSV
+     */
+    protected $file;
+
+    /**
+     * @var resource $fp File resource pointer
+     */
+    protected $fp;
 
     /**
      * Constructor.  Specify CSV filename to load (optional) and whether or
@@ -73,9 +100,9 @@ class CSV
         $first = true;
         fseek($this->fp, $this->options['fileDataStartPos']);
         while ($data = fgetcsv($this->fp)) {
-            $this->csv[] = new Record($this, $data, $this->options['trim']);
+            $this->csv[] = new Record($this, $data);
         }
-        \fclose($this->fp);
+        fclose($this->fp);
         $this->loaded = true;
     }
 
@@ -85,10 +112,10 @@ class CSV
      * @return void
      */
     protected function indexFile() {
-        $this->fileIndexes = [];
+        $this->csv = [];
         fseek($this->fp, $this->options['fileDataStartPos']);
         for ($pos = $this->options['fileDataStartPos']; $buf = fgets($this->fp); $pos += strlen($buf)) {
-            $this->fileIndexes[] = $pos;
+            $this->csv[] = $pos;
         }
     }
 
@@ -173,7 +200,7 @@ class CSV
      * @return array
      */
     public function getColumns($mutate = true) {
-        return $mutate ? $this->applyHeaderMutations($this->columns) : $this->columns;
+        return $mutate ? $this->mutateHeader($this->columns) : $this->columns;
     }
 
     /**
@@ -187,57 +214,71 @@ class CSV
     }
 
     /**
-     * Create new row and append to end of CSV
+     * Create new Record and insert it into an arbitrary position.
      *
-     * @param array $fill Optional array containing values to fill into row
+     * @param array $data Data to populate the Record with
      *
-     * @return int Row index of newly inserted row
+     * @return Record
      */
-    public function appendRecord(array $fill = []) {
-        $this->csv[] = ($record = new Record($this, $fill, $this->options['trim']));
+    public function insertRecord(array $data = [], $position = -1) {
+        $record = new Record($this, $data);
+        if ($position < 0) {
+            $this->csv[] = $record;
+        } else {
+            array_splice($this->csv, $position, 0, [$record]);
+        }
         return $record;
     }
 
     /**
-     * Fetch record from a specific row
-     * If $rowIndex < 0, then fetch last record
+     * Delete Record at a position.
      *
-     * @param int $row Index of row to fetch or -1 to fetch last record.
+     * @param int $position
      *
-     * @return Record
+     * @return void
      */
-    public function get($row = -1) {
-        $record = null;
-        if ($this->csv) {
-            if ($row < 0) {
-                $record = $this->csv[count($this->csv)-1];
-            } else if ($row >= count($this->csv)) {
-                throw new \OutOfBoundsException("Row $row is out of bounds!");
-            } else {
-                $record = $this->csv[$row];
-            }
-        } else {
-            if ($row < 0) {
-                $seekTo = $this->fileIndexes[count($this->fileIndexes)-1];
-            } else if ($row >= count($this->fileIndexes)) {
-                throw new \OutOfBoundsException("Row $row is out of bounds!");
-            } else {
-                $seekTo = $this->fileIndexes[$row];
-            }
-            fseek($this->fp, $seekTo);
-            $record = new Record($this, fgetcsv($this->fp), $this->options['trim']);
+    public function deleteRecord($position) {
+        if (!isset($this->csv[$position])) {
+            throw new \OutOfBoundsException("Position $position is out of bounds!");
         }
-        return $this->applyRecordMutations($record);
+        unset($this->csv[$position]);
+        $this->csv = array_values($this->csv);
     }
 
     /**
-     * Apply all mutations to a record
+     * Fetch Record at position
+     * If $position < 0, then fetch last record
+     *
+     * @param int $position Position of Record to fetch or -1 to fetch last record.
+     *
+     * @return Record
+     */
+    public function get($position = -1) {
+        $record = null;
+        if ($position < 0) {
+            $position = count($this->csv)-1;
+        }
+        if (!isset($this->csv[$position])) {
+            throw new \OutOfBoundsException("Position $position is out of bounds!");
+        }
+        if ($this->csv[$position] instanceof Record) {
+            $record = $this->csv[$position];
+        } else if (is_int($this->csv[$position])) { // offset position in file
+            fseek($this->fp, $this->csv[$position]);
+            $record = new Record($this, fgetcsv($this->fp));
+        }
+
+        return $this->mutateRecord($record);
+    }
+
+    /**
+     * Apply all mutations to a copy of Record
      *
      * @param Record $record
      *
      * @return Record
      */
-    protected function applyRecordMutations(Record $record) {
+    protected function mutateRecord(Record $record) {
         $r = clone $record;
         foreach ($this->mutators as $mutator) {
             $r = $mutator->mutate($r);
@@ -252,7 +293,7 @@ class CSV
      *
      * @return array
      */
-    protected function applyHeaderMutations(array $header) {
+    protected function mutateHeader(array $header) {
         foreach ($this->mutators as $mutator) {
             $header = $mutator->mutateHeader($header);
         }
@@ -335,11 +376,7 @@ class CSV
      * @return int
      */
     public function getNumRecords() {
-        if ($this->csv) {
-            return count($this->csv);
-        } else {
-            return count($this->fileIndexes);
-        }
+        return count($this->csv);
     }
 
     /**
