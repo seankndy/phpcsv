@@ -20,7 +20,14 @@ It is similar to an SQL join, for example:
 use SeanKndy\CSV\CSV;
 
 $csv = new CSV('file.csv');
-$csv->join(new CSV('other_file.csv'), 'id', 'fid', ['user'], ['username']));
+$csv->join(
+    new CSV('other_file.csv'),
+    function ($r1, $r2) {
+        return ($r1->get('id') == $r2->get('fid'));
+    },
+    ['user'],
+    ['username']
+));
 $csv->getRecords()->dump();
 ```
 

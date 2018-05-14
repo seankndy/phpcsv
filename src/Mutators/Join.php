@@ -11,24 +11,25 @@ use SeanKndy\CSV\Record;
  */
 class Join extends Mutator
 {
+    protected $recordComparator;
     protected $thisKeyColumn;
     protected $thatKeyColumn;
     protected $that;
     protected $theseColumns, $thoseColumns;
 
-    public function __construct(CSV $that, string $thisKeyColumn, string $thatKeyColumn,
+    public function __construct(CSV $that, callable $comparator,
         array $theseColumns, array $thoseColumns) {
-        $this->thisKeyColumn = $thisKeyColumn;
-        $this->thatKeyColumn = $thatKeyColumn;
+        $this->recordComparator = $comparator;
         $this->that = $that;
         $this->theseColumns = $theseColumns;
         $this->thoseColumns = $thoseColumns;
     }
 
     public function mutate(Record $record) {
+        $comparator = $this->recordComparator;
         $theseColumns = (!$this->theseColumns ? $this->thoseColumns : $this->theseColumns);
         foreach ($this->that->getRecords() as $thatRecord) {
-            if ($record->get($this->thisKeyColumn) == $thatRecord->get($this->thatKeyColumn)) {
+            if ($comparator($record, $thatRecord)) {
                 foreach ($this->thoseColumns as $k => $thatCol) {
                     $record->set(
                         $theseColumns[$k],

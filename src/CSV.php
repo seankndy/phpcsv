@@ -324,26 +324,20 @@ class CSV
 
     /**
      * Fill $theseColumns of $this CSV with $thoseColumns of another CSV.
-     * Key/filter the two CSVs together by matching $thisKeyColumn in $this
-     * CSV and $thatKeyColumn in $that.  If $theseColumns is empty, then
-     * then the values from $that will be appended as new columns.
+     * Key/filter the two CSVs together by running comparator function.
+     * If $theseColumns is empty, then then the values from $that will be
+     * appended as new columns.
      *
      * @param CSV $that CSV object we're filling data from
-     * @param string $thisKeyColumn Column contain key in $this CSV
-     * @param string $thatKeyColumn Matching column containing key in $that CSV
+     * @param callable $comparator Callable that is passed 2 args: a Record
+     *    from $this and from $that.  Return boolean.
      * @param array $theseColumns Columns we are over-writing in $this CSV
      * @param array $thoseColumns Columns we are getting data from (in $that CSV)
      *
      * @return void
      */
-    public function join(CSV $that, $thisKeyColumn, $thatKeyColumn,
+    public function join(CSV $that, callable $comparator,
         array $theseColumns, array $thoseColumns) {
-        if (!$this->columnExists($thisKeyColumn)) {
-            throw new \InvalidArgumentException("\$thisKeyColumn ($thisKeyColumn) is undefined!");
-        }
-        if (!$that->columnExists($thatKeyColumn)) {
-            throw new \InvalidArgumentException("\$thatKeyColumn ($thatKeyColumn) is undefined in \$that CSV!");
-        }
         if ($theseColumns && count($theseColumns) != count($thoseColumns)) {
             throw new \InvalidArgumentException("\$theseColumns must be same length as \$thoseColumns");
         }
@@ -356,7 +350,7 @@ class CSV
 
         $this->mutators[] = new Mutators\Join(
             $that,
-            $thisKeyColumn, $thatKeyColumn,
+            $comparator,
             $theseColumns, $thoseColumns
         );
     }
