@@ -23,7 +23,22 @@ trait RecordsTrait
         }
         return false;
     }
-    
+
+    /**
+     * Return all data from column $col as an array
+     *
+     * @param string Column name of data to fetch into array
+     *
+     * @return array
+     */
+    public function arrayFromColumn(string $col) {
+        $data = [];
+        foreach ($this as $record) {
+            $data[] = $record->get($col);
+        }
+        return $data;
+    }
+
     /**
      * Dump CSV to stdout
      *
