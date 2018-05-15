@@ -140,7 +140,7 @@ class CSV
      * @return $this
      */
     public function deleteColumn($col) {
-        $this->mutators[] = Mutators\DeleteColumn($col);
+        $this->mutators[] = new Mutators\DeleteColumn($col);
         return $this;
     }
 
