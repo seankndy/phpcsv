@@ -6,11 +6,20 @@ class Record
     protected $csv;
     protected $data = [];
 
+    /**
+     * Constructor.
+     *
+     * @param CSV $csv CSV object for this Record
+     * @param array $data Column data for this record
+     *
+     * @return $this;
+     */
     public function __construct(CSV $csv, array $data = []) {
         $this->csv = $csv;
         if (!$data)
             $data = array_fill(0, count($this->csv->getColumns()), '');
         $this->setData($data);
+        return $this;
     }
 
     /**
