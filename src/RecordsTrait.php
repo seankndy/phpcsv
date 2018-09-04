@@ -85,4 +85,24 @@ trait RecordsTrait
             CSV::printLine($data);
         }
     }
+
+    /**
+     * Write records to a given file
+     *
+     * @param string $filename
+     *
+     * @return void
+     */
+    public function writeToFile(string $filename, $includeHeader = true) {
+        if (!($fp = @\fopen($filename, 'w+'))) {
+            throw new \Exception("Failed to open file for writing: $filename");
+        }
+        if ($includeHeader) {
+            fwrite($fp, CSV::arrayToString($this->csv->getColumns()));
+        }
+        foreach ($this as $record) {
+            fwrite($fp, (string)$record);
+        }
+        fclose($fp);
+    }
 }
