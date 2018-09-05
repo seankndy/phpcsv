@@ -69,7 +69,9 @@ $csv->combineColumns(['first_name','last_name'], 'name');
 $csv->getRecords()->dump();
 ```
 
-Manually get or set data from a record:
+Manually get or set data from a record. Note that this only works
+if you're NOT using mutators!  If mutators are in use, then get() will
+return a clone/copy of that data post-mutated.
 ```
 use SeanKndy\CSV\CSV;
 

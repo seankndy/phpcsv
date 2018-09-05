@@ -279,6 +279,10 @@ class CSV
      * @return Record
      */
     protected function mutateRecord(Record $record) {
+        if (!$this->mutators) {
+            return $record;
+        }
+        
         $r = clone $record;
         foreach ($this->mutators as $mutator) {
             $r = $mutator->mutate($r);
