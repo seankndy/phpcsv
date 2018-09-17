@@ -94,19 +94,28 @@ class Record
     /**
      * Set data for column $col
      *
-     * @param mixed $col String name of int index of column to set
-     * @param mixed $data Data to set for column
+     * @param mixed $col String name of column to set or array of columns to set
+     * @param mixed $data Data to set for column or array of data if $col also array
+     * @param boolean $overwrite If column $col already has data in it, do we
+     *      want to overwrite it anyway?
      *
      * @return void
      */
-    public function set($col, $data) {
-        //if (!$this->csv->columnExists($col)) {
-        //    throw new \InvalidArgumentException("Invalid/unknown column '$col'\n");
-        //}
-        if ($formatter = $this->csv->getFormatter($col)) {
-            $data = $formatter($data);
+    public function set($col, $data, $overwrite = true) {
+        if (!is_array($col)) $col = [$col];
+        if (!is_array($data)) $data = [$data];
+
+        foreach ($col as $k => $c) {
+            if (!$overwrite && isset($this->data[$c]) && $this->data[$c]) {
+                continue;
+            }
+            
+            $d = $data[$k];
+            if ($formatter = $this->csv->getFormatter($c)) {
+                $d = $formatter($data[$k]);
+            }
+            $this->data[$c] = $d;
         }
-        $this->data[$col] = $data;
     }
 
     /**
