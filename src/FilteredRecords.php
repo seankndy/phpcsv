@@ -27,9 +27,9 @@ class FilteredRecords extends \FilterIterator implements RecordsInterface
         $filtered = false;
         foreach ($this->filter as $col => $f) {
             $isIn = in_array($record->get($col), $f);
-            if (!$inverse && !$isIn) {
+            if (!$this->inverse && !$isIn) {
                 return false;
-            } else if ($inverse && $isIn) {
+            } else if ($this->inverse && $isIn) {
                 return false;
             }
         }
