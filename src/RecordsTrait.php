@@ -7,6 +7,8 @@ namespace SeanKndy\CSV;
  */
 trait RecordsTrait
 {
+    protected $csv;
+
     /**
      * Determine if $value is set for $col any record
      *
@@ -104,5 +106,23 @@ trait RecordsTrait
             fwrite($fp, (string)$record);
         }
         fclose($fp);
+    }
+
+    /**
+     * Get CSV for this Records object
+     *
+     * @return CSV
+     */
+    public function getCsv() {
+        return $this->csv;
+    }
+
+    /**
+     * Get all records
+     *
+     * @return array
+     */
+    public function getAll() {
+        return iterator_to_array($this);
     }
 }

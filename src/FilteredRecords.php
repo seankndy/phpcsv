@@ -1,7 +1,7 @@
 <?php
 namespace SeanKndy\CSV;
 
-class FilteredRecords extends \FilterIterator
+class FilteredRecords extends \FilterIterator implements RecordsInterface
 {
     use RecordsTrait;
 

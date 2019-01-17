@@ -1,11 +1,10 @@
 <?php
 namespace SeanKndy\CSV;
 
-class Records implements \Iterator
+class Records implements \Iterator, RecordsInterface
 {
     use RecordsTrait;
 
-    protected $csv;
     protected $position = 0;
     protected $filter = [];
 
@@ -38,15 +37,6 @@ class Records implements \Iterator
      */
     public function notFilter(array $filter) {
         return new FilteredRecords($this, $filter, true);
-    }
-
-    /**
-     * Get CSV for this Records object
-     *
-     * @return CSV
-     */
-    public function getCsv() {
-        return $this->csv;
     }
 
     /**

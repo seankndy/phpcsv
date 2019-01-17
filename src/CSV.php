@@ -78,6 +78,29 @@ class CSV
         return $this;
     }
 
+    /**
+     * Build new CSV from a Records class
+     *
+     * @return CSV
+     */
+    public static function fromRecords(RecordsInterface $records) {
+        $csv = new self();
+        if ($records = $records->getAll()) {
+            $csv->setColumns(array_keys($records[0]->getAll()));
+        }
+        $csv->setRecords($records);
+        return $csv;
+    }
+
+    /**
+     * Manually set records in this CSV
+     *
+     * @return $this
+     */
+    public function setRecords(array $records) {
+        $this->csv = $records;
+        return $this;
+    }
 
     /**
      * Set columns from the first line in CSV
