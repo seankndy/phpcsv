@@ -55,7 +55,7 @@ class CSV
 
         $this->options['trim'] = !isset($options['trim']) || $options['trim'];
         $this->options['preload'] = (!isset($options['preload']) || $options['preload']);
-        $this->options['hasHeader'] = ((!isset($options['hasHeader']) && $file) || $options['hasHeader']);
+        $this->options['hasHeader'] = ((!isset($options['hasHeader']) && $file) || (isset($options['hasHeader']) && $options['hasHeader']));
 
         if ($this->file) {
             if (!($this->fp = @\fopen($this->file, 'r'))) {
