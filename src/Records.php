@@ -28,6 +28,19 @@ class Records implements \Iterator
     }
 
     /**
+     * Filter records (inverse) from CSV based on data from column(s)
+     *
+     * @param array $filter Filter array, format: ['col_name' => ['1','2']]
+     *   the above example would remove any row in CSV where col_name is
+     *   1 or 2
+     *
+     * @return FilteredRecords
+     */
+    public function notFilter(array $filter) {
+        return new FilteredRecords($this, $filter, true);
+    }
+
+    /**
      * Get CSV for this Records object
      *
      * @return CSV
