@@ -123,6 +123,6 @@ trait RecordsTrait
      * @return array
      */
     public function getAll() {
-        return iterator_to_array($this);
+        return iterator_to_array($this, false);
     }
 }
