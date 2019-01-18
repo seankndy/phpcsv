@@ -109,7 +109,7 @@ class CSV
      */
     public function setColumnsFromHeaderInFile() {
         fseek($this->fp, 0);
-        $this->columns = fgetcsv($this->fp);
+        $this->columns = fgetcsv($this->fp, 0, ',', '"', '"');
         $this->options['fileDataStartPos'] = ftell($this->fp);
         array_walk($this->columns, function (&$v,$k) { $v = trim($v); });
     }
@@ -122,7 +122,7 @@ class CSV
     public function loadFile() {
         $first = true;
         fseek($this->fp, $this->options['fileDataStartPos']);
-        while ($data = fgetcsv($this->fp)) {
+        while ($data = fgetcsv($this->fp, 0, ',', '"', '"')) {
             $this->csv[] = new Record($this, $data);
         }
         fclose($this->fp);
@@ -288,7 +288,7 @@ class CSV
             $record = $this->csv[$position];
         } else if (is_int($this->csv[$position])) { // offset position in file
             fseek($this->fp, $this->csv[$position]);
-            $record = new Record($this, fgetcsv($this->fp));
+            $record = new Record($this, fgetcsv($this->fp, 0, ',', '"', '"'));
         }
 
         return $this->mutateRecord($record);
@@ -440,7 +440,7 @@ class CSV
             throw new \Exception("Failed to open file for reading: $file");
         }
         $first = true;
-        while ($data = \fgetcsv($fp)) {
+        while ($data = \fgetcsv($fp, 0, ',', '"', '"')) {
             if ($skipFirstLine && $first) {
                 $first = false;
                 continue;

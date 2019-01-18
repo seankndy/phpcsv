@@ -79,16 +79,7 @@ class Record
      * @return array
      */
      public function getAll() {
-         $data = [];
-         foreach ($this->csv->getColumns() as $col) {
-             $v = isset($this->data[$col]) ? $this->data[$col] : '';
-             if ($f = $this->csv->getFormatter($col)) {
-                 $data[$col] = $f($v);
-             } else {
-                 $data[$col] = $v;
-             }
-         }
-         return $data;
+         return $this->data;
      }
 
     /**
@@ -109,7 +100,7 @@ class Record
             if (!$overwrite && isset($this->data[$c]) && $this->data[$c]) {
                 continue;
             }
-            
+
             $d = $data[$k];
             if ($formatter = $this->csv->getFormatter($c)) {
                 $d = $formatter($data[$k]);

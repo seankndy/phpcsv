@@ -5,7 +5,6 @@ class FilteredRecords extends \FilterIterator implements RecordsInterface
 {
     use RecordsTrait;
 
-    protected $csv;
     protected $filter = [];
     protected $inverse;
 
