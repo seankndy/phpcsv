@@ -14,6 +14,18 @@ class Records implements \Iterator, RecordsInterface
     }
 
     /**
+     * Set CSV object for this Records object
+     *
+     * @param CSV $csv
+     *
+     * @return $this
+     */
+    public function setCsv(CSV $csv) {
+        $this->csv = $csv;
+        return $this;
+    }
+
+    /**
      * Filter records from CSV based on data from column(s)
      *
      * @param array $filter Filter array, format: ['col_name' => ['1','2']]

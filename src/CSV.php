@@ -98,6 +98,10 @@ class CSV
      * @return $this
      */
     public function setRecords(array $records) {
+        foreach ($records as $record) {
+            $record->setCsv($this);
+        }
+
         $this->csv = $records;
         return $this;
     }

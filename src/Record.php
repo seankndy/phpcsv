@@ -109,13 +109,25 @@ class Record
             if (!$overwrite && isset($this->data[$c]) && $this->data[$c]) {
                 continue;
             }
-            
+
             $d = $data[$k];
             if ($formatter = $this->csv->getFormatter($c)) {
                 $d = $formatter($data[$k]);
             }
             $this->data[$c] = $d;
         }
+    }
+
+    /**
+     * Set CSV object for this Record
+     *
+     * @param CSV $csv
+     *
+     * @return $this
+     */
+    public function setCsv(CSV $csv) {
+        $this->csv = $csv;
+        return $this;
     }
 
     /**
