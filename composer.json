@@ -1,6 +1,6 @@
 {
     "name": "seankndy/phpcsv",
-    "description": "Class for working with CSV",
+    "description": "PHP package for working with CSV data",
     "authors": [
         {
             "name": "Sean Kennedy",
